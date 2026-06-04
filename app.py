@@ -1,3 +1,15 @@
+from anomaly_detection.dbscan_detector import (
+    detect_anomalies_dbscan
+)
+from anomaly_detection.one_class_svm import (
+    detect_anomalies_svm
+)
+from visualizations.charts import (
+    create_histogram,
+    create_boxplot,
+     create_scatter,
+    create_heatmap
+)
 
 from streamlit_autorefresh import st_autorefresh
 import numpy as np
@@ -52,15 +64,15 @@ uploaded_file = st.file_uploader(
     "Upload CSV File",
     type=["csv"]
 )
+df = None
 
+if uploaded_file is not None:
+    df = pd.read_csv(uploaded_file)
 # ==============================================
 # DASHBOARD PAGE
 # ==============================================
 
 if uploaded_file and page == "Dashboard":
-
-    df = pd.read_csv(uploaded_file)
-
     # --------------------------------
     # KPI METRICS
     # --------------------------------
@@ -172,11 +184,25 @@ if uploaded_file and page == "Dashboard":
 if uploaded_file and page == "Anomaly Detection":
 
     st.header("🚨 Anomaly Detection")
+    model_choice = st.selectbox(
+    "Select Detection Model",
+    [
+        "Isolation Forest",
+        "DBSCAN",
+        "One-Class SVM"
+    ]
+)
 
-    df = pd.read_csv(uploaded_file)
 
-    result_df = detect_anomalies(df)
-
+    if model_choice == "Isolation Forest":
+        result_df = detect_anomalies(df)
+    elif model_choice == "DBSCAN":
+        result_df = detect_anomalies_dbscan(df)
+    else:
+        result_df = detect_anomalies_svm(df)
+    st.info(
+    f"Current Model: {model_choice}"
+)
     anomaly_count = (
         result_df['anomaly'] == -1
     ).sum()
@@ -267,7 +293,6 @@ if uploaded_file and page == "Visualizations":
 
     st.header("📈 Data Visualizations")
 
-    df = pd.read_csv(uploaded_file)
 
     numeric_columns = df.select_dtypes(
         include=['float64', 'int64']
@@ -277,43 +302,52 @@ if uploaded_file and page == "Visualizations":
     # HISTOGRAM
     # --------------------------------
 
-    st.subheader("Histogram")
+    if uploaded_file and page == "Visualizations":
 
-    selected_column = st.selectbox(
+        st.header("📈 Data Visualizations")
+
+
+        numeric_columns = df.select_dtypes(
+        include=['float64', 'int64']
+        ).columns
+
+    # --------------------------------
+    # HISTOGRAM
+    # --------------------------------
+
+        st.subheader("Histogram")
+
+        selected_column = st.selectbox(
         "Select Column",
         numeric_columns
-    )
+        )
 
-    hist_fig = px.histogram(
+        hist_fig = create_histogram(
         df,
-        x=selected_column,
-        title=f"Distribution of {selected_column}"
-    )
+        selected_column
+        )
 
-    st.plotly_chart(
+        st.plotly_chart(
         hist_fig,
         use_container_width=True
-    )
+        )
 
     # --------------------------------
     # CORRELATION HEATMAP
     # --------------------------------
 
-    st.subheader("Correlation Heatmap")
+        st.subheader("Correlation Heatmap")
 
-    correlation_matrix = (
+        correlation_matrix = (
         df[numeric_columns]
         .corr()
-    )
+         )
 
-    heatmap_fig = px.imshow(
-        correlation_matrix,
-        text_auto=True,
-        aspect="auto",
-        title="Feature Correlation Matrix"
-    )
+        heatmap_fig = create_heatmap(
+    correlation_matrix
+)
 
-    st.plotly_chart(
+        st.plotly_chart(
         heatmap_fig,
         use_container_width=True
     )
@@ -330,16 +364,15 @@ if uploaded_file and page == "Visualizations":
         key="boxplot"
     )
 
-    box_fig = px.box(
-        df,
-        y=box_column,
-        title=f"Box Plot of {box_column}"
+    box_fig = create_boxplot(
+    df,
+    box_column
     )
 
     st.plotly_chart(
-        box_fig,
-        use_container_width=True
-    )
+    box_fig,
+    use_container_width=True
+)
 
     # --------------------------------
     # SCATTER PLOT
@@ -359,12 +392,11 @@ if uploaded_file and page == "Visualizations":
         key="scatter_y"
     )
 
-    scatter_fig = px.scatter(
-        df,
-        x=x_feature,
-        y=y_feature,
-        title="Feature Relationship"
-    )
+    scatter_fig = create_scatter(
+    df,
+    x_feature,
+    y_feature
+)
 
     st.plotly_chart(
         scatter_fig,
@@ -385,7 +417,6 @@ if uploaded_file and page == "Real-Time Monitoring":
         key="realtime_refresh"
     )
 
-    df = pd.read_csv(uploaded_file)
 
     # Simulate live data
     live_data = df.sample(200)
