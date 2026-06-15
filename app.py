@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 from anomaly_detection.dbscan_detector import (
     detect_anomalies_dbscan
 )
@@ -11,6 +12,17 @@ from visualizations.charts import (
     create_heatmap
 )
 
+=======
+from DataPulse.DataPulse.anomaly_detection.one_class_svm import detect_anomalies_svm
+from DataPulse.anomaly_detection.dbscan_detector import detect_anomalies_dbscan
+from profiling.validation_rules import (
+    run_validation
+)
+from storage.history_manager import (
+    save_analysis,
+    load_history
+)
+>>>>>>> 85b3e7d (Added history dashboard and model comparison)
 from streamlit_autorefresh import st_autorefresh
 import numpy as np
 from profiling.quality_score import calculate_quality_score
@@ -42,7 +54,9 @@ page = st.sidebar.radio(
         "Dashboard",
         "Anomaly Detection",
         "Visualizations",
-        "Real-Time Monitoring"
+        "Real-Time Monitoring",
+        "Analysis History"
+        
     ]
 )
 
@@ -176,6 +190,13 @@ if uploaded_file and page == "Dashboard":
         df.describe(),
         use_container_width=True
     )
+    st.header("✅ Validation Results")
+
+    validation_results = run_validation(df)
+
+    for result in validation_results:
+
+        st.write(result)
 
 # ==============================================
 # ANOMALY DETECTION PAGE
@@ -193,6 +214,7 @@ if uploaded_file and page == "Anomaly Detection":
     ]
 )
 
+<<<<<<< HEAD
 
     if model_choice == "Isolation Forest":
         result_df = detect_anomalies(df)
@@ -203,9 +225,45 @@ if uploaded_file and page == "Anomaly Detection":
     st.info(
     f"Current Model: {model_choice}"
 )
+=======
+    model_choice = st.selectbox(
+        "Choose Model",
+        [
+            "Isolation Forest",
+            "DBSCAN",
+            "One-Class SVM"
+        ]
+    )
+
+    df = pd.read_csv(uploaded_file)
+
+    # Run selected model
+    if model_choice == "Isolation Forest":
+
+        result_df = detect_anomalies(df)
+
+    elif model_choice == "DBSCAN":
+
+        result_df = detect_anomalies_dbscan(df)
+
+    elif model_choice == "One-Class SVM":
+
+        result_df = detect_anomalies_svm(df)
+
+    # Count anomalies
+>>>>>>> 85b3e7d (Added history dashboard and model comparison)
     anomaly_count = (
         result_df['anomaly'] == -1
     ).sum()
+
+    quality_score = calculate_quality_score(df)
+
+    save_analysis(
+        uploaded_file.name,
+        quality_score,
+        anomaly_count,
+        model_choice
+    )
 
     st.metric(
         "Total Anomalies Detected",
@@ -220,7 +278,6 @@ if uploaded_file and page == "Anomaly Detection":
         anomaly_df.head(50),
         use_container_width=True
     )
-
     # --------------------------------
     # ANOMALY VISUALIZATION
     # --------------------------------
@@ -484,4 +541,141 @@ if uploaded_file and page == "Real-Time Monitoring":
         realtime_fig,
         use_container_width=True
     )
+# ==============================================
+# ANALYSIS HISTORY PAGE
+# ==============================================
 
+if page == "Analysis History":
+
+    st.header("📜 Analysis History")
+
+    history_df = load_history()
+
+    if history_df.empty:
+
+        st.warning(
+            "No analysis history available."
+        )
+
+    else:
+
+        # KPI Cards
+        total_runs = len(history_df)
+
+        avg_quality = round(
+            history_df["Quality Score"].mean(),
+            2
+        )
+
+        total_anomalies = (
+            history_df["Anomalies"].sum()
+        )
+
+        most_used_model = (
+            history_df["Model"].mode()[0]
+        )
+
+        col1, col2, col3, col4 = st.columns(4)
+
+        col1.metric(
+            "Total Analyses",
+            total_runs
+        )
+
+        col2.metric(
+            "Avg Quality Score",
+            avg_quality
+        )
+
+        col3.metric(
+            "Total Anomalies",
+            total_anomalies
+        )
+
+        col4.metric(
+            "Most Used Model",
+            most_used_model
+        )
+
+        # Model Usage Chart
+        st.subheader("📊 Model Usage")
+
+        model_counts = (
+            history_df["Model"]
+            .value_counts()
+            .reset_index()
+        )
+
+        model_counts.columns = [
+            "Model",
+            "Count"
+        ]
+
+        fig = px.bar(
+            model_counts,
+            x="Model",
+            y="Count",
+            title="Model Usage Distribution"
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
+        # Quality Trend
+        st.subheader(
+            "📈 Quality Score Trend"
+        )
+
+        trend_fig = px.line(
+            history_df,
+            x="Date",
+            y="Quality Score",
+            markers=True,
+            title="Quality Score Over Time"
+        )
+
+        st.plotly_chart(
+            trend_fig,
+            use_container_width=True
+        )
+
+        # Anomaly Trend
+        st.subheader(
+            "🚨 Anomaly Trend"
+        )
+
+        anomaly_fig = px.line(
+            history_df,
+            x="Date",
+            y="Anomalies",
+            markers=True,
+            title="Anomalies Over Time"
+        )
+
+        st.plotly_chart(
+            anomaly_fig,
+            use_container_width=True
+        )
+
+        # Search
+        search_dataset = st.text_input(
+            "🔍 Search Dataset"
+        )
+
+        filtered_df = history_df
+
+        if search_dataset:
+
+            filtered_df = history_df[
+                history_df["Dataset"].str.contains(
+                    search_dataset,
+                    case=False
+                )
+            ]
+
+        st.dataframe(
+            filtered_df,
+            use_container_width=True
+        )   

@@ -1,0 +1,3 @@
+Date,Dataset,Quality Score,Anomalies,Model
+2026-06-15 14:07,creditcard.csv,99.62,2849,Isolation Forest
+2026-06-15 14:14,creditcard.csv,99.62,218066,DBSCAN
