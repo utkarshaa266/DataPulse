@@ -1,28 +1,57 @@
-<<<<<<< HEAD
 from anomaly_detection.dbscan_detector import (
     detect_anomalies_dbscan
 )
+
 from anomaly_detection.one_class_svm import (
     detect_anomalies_svm
 )
+
+from anomaly_detection.isolation_forest import (
+    detect_anomalies
+)
+
 from visualizations.charts import (
     create_histogram,
     create_boxplot,
-     create_scatter,
+    create_scatter,
     create_heatmap
 )
 
-=======
-from DataPulse.DataPulse.anomaly_detection.one_class_svm import detect_anomalies_svm
-from DataPulse.anomaly_detection.dbscan_detector import detect_anomalies_dbscan
 from profiling.validation_rules import (
     run_validation
 )
+
+from profiling.quality_score import (
+    calculate_quality_score
+)
+
 from storage.history_manager import (
     save_analysis,
     load_history
 )
->>>>>>> 85b3e7d (Added history dashboard and model comparison)
+
+from insights.ai_insights import (
+    generate_insights
+)
+
+from streamlit_autorefresh import (
+    st_autorefresh
+)
+
+import numpy as np
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+
+
+# --------------------------------
+# PAGE CONFIG
+# --------------------------------
+
+st.set_page_config(
+    page_title="DataPulse",
+    layout="wide"
+)
 from streamlit_autorefresh import st_autorefresh
 import numpy as np
 from profiling.quality_score import calculate_quality_score
@@ -53,6 +82,7 @@ page = st.sidebar.radio(
     [
         "Dashboard",
         "Anomaly Detection",
+        "Data Cleaning",
         "Visualizations",
         "Real-Time Monitoring",
         "Analysis History"
@@ -205,37 +235,36 @@ if uploaded_file and page == "Dashboard":
 if uploaded_file and page == "Anomaly Detection":
 
     st.header("🚨 Anomaly Detection")
-    model_choice = st.selectbox(
-    "Select Detection Model",
-    [
-        "Isolation Forest",
-        "DBSCAN",
-        "One-Class SVM"
-    ]
-)
 
-<<<<<<< HEAD
+    # Reset uploaded file pointer
+    uploaded_file.seek(0)
 
-    if model_choice == "Isolation Forest":
-        result_df = detect_anomalies(df)
-    elif model_choice == "DBSCAN":
-        result_df = detect_anomalies_dbscan(df)
-    else:
-        result_df = detect_anomalies_svm(df)
-    st.info(
-    f"Current Model: {model_choice}"
-)
-=======
+    # Read uploaded CSV
+    try:
+        df = pd.read_csv(uploaded_file)
+
+    except pd.errors.EmptyDataError:
+        st.error(
+            "❌ The uploaded CSV is empty or could not be read. "
+            "Please upload the file again."
+        )
+        st.stop()
+
+    except Exception as e:
+        st.error(
+            f"❌ Error reading uploaded CSV: {e}"
+        )
+        st.stop()
+
+    # Select detection model
     model_choice = st.selectbox(
-        "Choose Model",
+        "Select Detection Model",
         [
             "Isolation Forest",
             "DBSCAN",
             "One-Class SVM"
         ]
     )
-
-    df = pd.read_csv(uploaded_file)
 
     # Run selected model
     if model_choice == "Isolation Forest":
@@ -250,14 +279,20 @@ if uploaded_file and page == "Anomaly Detection":
 
         result_df = detect_anomalies_svm(df)
 
+    # Display selected model
+    st.info(
+        f"Current Model: {model_choice}"
+    )
+
     # Count anomalies
->>>>>>> 85b3e7d (Added history dashboard and model comparison)
     anomaly_count = (
-        result_df['anomaly'] == -1
+        result_df["anomaly"] == -1
     ).sum()
 
+    # Calculate quality score
     quality_score = calculate_quality_score(df)
 
+    # Save analysis history
     save_analysis(
         uploaded_file.name,
         quality_score,
@@ -265,51 +300,64 @@ if uploaded_file and page == "Anomaly Detection":
         model_choice
     )
 
+    # Display anomaly count
     st.metric(
         "Total Anomalies Detected",
         anomaly_count
     )
 
+    # Display anomalous rows
     anomaly_df = result_df[
-        result_df['anomaly'] == -1
+        result_df["anomaly"] == -1
     ]
+
+    st.subheader("⚠️ Detected Anomalies")
 
     st.dataframe(
         anomaly_df.head(50),
         use_container_width=True
     )
-    # --------------------------------
+        # --------------------------------
     # ANOMALY VISUALIZATION
     # --------------------------------
 
     numeric_columns = df.select_dtypes(
-        include=['float64', 'int64']
-    ).columns
+        include=["number"]
+    ).columns.tolist()
 
-    x_axis = st.selectbox(
-        "Select X-axis",
-        numeric_columns,
-        key="x_axis"
-    )
+    if len(numeric_columns) >= 2:
 
-    y_axis = st.selectbox(
-        "Select Y-axis",
-        numeric_columns,
-        key="y_axis"
-    )
+        x_axis = st.selectbox(
+            "Select X-axis",
+            numeric_columns,
+            key="x_axis"
+        )
 
-    fig = px.scatter(
-        result_df,
-        x=x_axis,
-        y=y_axis,
-        color=result_df['anomaly'].astype(str),
-        title="Anomaly Visualization"
-    )
+        y_axis = st.selectbox(
+            "Select Y-axis",
+            numeric_columns,
+            key="y_axis"
+        )
 
-    st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
+        fig = px.scatter(
+            result_df,
+            x=x_axis,
+            y=y_axis,
+            color=result_df["anomaly"].astype(str),
+            title="Anomaly Visualization"
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
+    else:
+
+        st.warning(
+            "⚠️ At least two numerical columns are required "
+            "for anomaly visualization."
+        )
 
     # --------------------------------
     # AI INSIGHTS
@@ -323,6 +371,7 @@ if uploaded_file and page == "Anomaly Detection":
     )
 
     for insight in insights:
+
         st.success(insight)
 
     # --------------------------------
@@ -333,7 +382,7 @@ if uploaded_file and page == "Anomaly Detection":
 
     csv_data = anomaly_df.to_csv(
         index=False
-    ).encode('utf-8')
+    ).encode("utf-8")
 
     st.download_button(
         label="Download Anomaly Report CSV",
@@ -341,6 +390,298 @@ if uploaded_file and page == "Anomaly Detection":
         file_name="anomaly_report.csv",
         mime="text/csv"
     )
+    
+    # ==============================================
+# DATA CLEANING PAGE
+# ==============================================
+
+if uploaded_file and page == "Data Cleaning":
+
+    st.header("🧹 Data Cleaning & Resolution")
+
+    # Reset uploaded file pointer
+    uploaded_file.seek(0)
+
+    # Read uploaded CSV
+    try:
+        df = pd.read_csv(uploaded_file)
+
+    except pd.errors.EmptyDataError:
+        st.error(
+            "❌ The uploaded CSV is empty. "
+            "Please upload a valid CSV file."
+        )
+        st.stop()
+
+    except Exception as e:
+        st.error(
+            f"❌ Unable to read the CSV file: {e}"
+        )
+        st.stop()
+          
+    # ==============================================
+    # DATASET OVERVIEW
+    # ==============================================
+
+    st.subheader("📊 Dataset Overview")
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    col1.metric(
+        "Rows",
+        df.shape[0]
+    )
+
+    col2.metric(
+        "Columns",
+        df.shape[1]
+    )
+
+    col3.metric(
+        "Missing Values",
+        int(df.isnull().sum().sum())
+    )
+
+    col4.metric(
+        "Duplicate Rows",
+        int(df.duplicated().sum())
+    )
+
+    # ==============================================
+    # MISSING VALUES
+    # ==============================================
+
+    st.subheader("⚠️ Missing Values")
+
+    missing_df = df.isnull().sum()
+
+    missing_df = missing_df[
+        missing_df > 0
+    ].sort_values(
+        ascending=False
+    )
+
+    if missing_df.empty:
+
+        st.success(
+            "✅ No missing values found!"
+        )
+
+    else:
+
+        missing_table = pd.DataFrame({
+            "Column": missing_df.index,
+            "Missing Values": missing_df.values
+        })
+
+        st.dataframe(
+            missing_table,
+            use_container_width=True
+        )
+
+        # ==============================================
+        # CLEANING METHOD
+        # ==============================================
+
+        st.subheader("🔧 Fix Missing Values")
+
+        numeric_columns = df.select_dtypes(
+            include=np.number
+        ).columns.tolist()
+
+        categorical_columns = df.select_dtypes(
+            exclude=np.number
+        ).columns.tolist()
+
+        cleaning_method = st.selectbox(
+            "Choose a method",
+            [
+                "Fill numerical values with Median",
+                "Fill numerical values with Mean",
+                "Fill categorical values with Mode",
+                "Remove rows containing missing values"
+            ]
+        )
+
+        # ==============================================
+        # CLEAN DATA
+        # ==============================================
+
+        if st.button("🧹 Clean Missing Values"):
+
+            cleaned_df = df.copy()
+
+            if cleaning_method == \
+                    "Fill numerical values with Median":
+
+                for column in numeric_columns:
+
+                    cleaned_df[column] = (
+                        cleaned_df[column]
+                        .fillna(
+                            cleaned_df[column].median()
+                        )
+                    )
+
+            elif cleaning_method == \
+                    "Fill numerical values with Mean":
+
+                for column in numeric_columns:
+
+                    cleaned_df[column] = (
+                        cleaned_df[column]
+                        .fillna(
+                            cleaned_df[column].mean()
+                        )
+                    )
+
+            elif cleaning_method == \
+                    "Fill categorical values with Mode":
+
+                for column in categorical_columns:
+
+                    if not cleaned_df[column].mode().empty:
+
+                        cleaned_df[column] = (
+                            cleaned_df[column]
+                            .fillna(
+                                cleaned_df[column].mode()[0]
+                            )
+                        )
+
+            elif cleaning_method == \
+                    "Remove rows containing missing values":
+
+                cleaned_df = cleaned_df.dropna()
+
+            # ==============================================
+            # CLEANING RESULT
+            # ==============================================
+
+            st.success(
+                "✅ Missing values cleaned successfully!"
+            )
+
+            remaining_nulls = int(
+                cleaned_df.isnull().sum().sum()
+            )
+
+            st.metric(
+                "Remaining Missing Values",
+                remaining_nulls
+            )
+
+            st.subheader(
+                "📋 Cleaned Dataset Preview"
+            )
+
+            st.dataframe(
+                cleaned_df.head(50),
+                use_container_width=True
+            )
+
+            # ==============================================
+            # DOWNLOAD CLEAN DATASET
+            # ==============================================
+
+            csv = cleaned_df.to_csv(
+                index=False
+            )
+
+            st.download_button(
+                "⬇️ Download Cleaned Dataset",
+                csv,
+                "DataPulse_cleaned.csv",
+                "text/csv"
+            )
+                # ==============================================
+    # DUPLICATE ROW REMOVAL
+    # ==============================================
+
+    st.subheader("🔄 Duplicate Rows")
+
+    duplicate_count = int(
+        df.duplicated().sum()
+    )
+
+    st.metric(
+        "Duplicate Rows Found",
+        duplicate_count
+    )
+
+    if duplicate_count == 0:
+
+        st.success(
+            "✅ No duplicate rows found!"
+        )
+
+    else:
+
+        st.warning(
+            f"⚠️ {duplicate_count} duplicate rows found."
+        )
+
+        st.write("### Duplicate Rows Preview")
+
+        duplicate_rows = df[
+            df.duplicated(keep=False)
+        ]
+
+        st.dataframe(
+            duplicate_rows.head(50),
+            use_container_width=True
+        )
+
+        if st.button("🧹 Remove Duplicate Rows"):
+
+            cleaned_df = (
+                df.drop_duplicates(
+                    keep="first"
+                )
+                .reset_index(drop=True)
+            )
+
+            removed_duplicates = (
+                len(df) - len(cleaned_df)
+            )
+
+            st.success(
+                f"✅ Successfully removed "
+                f"{removed_duplicates} duplicate rows!"
+            )
+
+            col1, col2 = st.columns(2)
+
+            col1.metric(
+                "Rows Before Cleaning",
+                len(df)
+            )
+
+            col2.metric(
+                "Rows After Cleaning",
+                len(cleaned_df)
+            )
+
+            st.subheader(
+                "📋 Cleaned Dataset Preview"
+            )
+
+            st.dataframe(
+                cleaned_df.head(50),
+                use_container_width=True
+            )
+
+            cleaned_csv = cleaned_df.to_csv(
+                index=False
+            )
+
+            st.download_button(
+                "⬇️ Download Dataset Without Duplicates",
+                cleaned_csv,
+                "DataPulse_no_duplicates.csv",
+                "text/csv"
+            )
+      
 
 # ==============================================
 # VISUALIZATION PAGE
@@ -476,8 +817,12 @@ if uploaded_file and page == "Real-Time Monitoring":
 
 
     # Simulate live data
-    live_data = df.sample(200)
+    sample_size = min(200, len(df))
 
+    live_data = df.sample(
+    sample_size,
+    replace=False
+)
     # Numeric columns
     numeric_columns = live_data.select_dtypes(
         include=['float64', 'int64']

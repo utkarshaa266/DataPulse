@@ -1,3 +1,22 @@
 Date,Dataset,Quality Score,Anomalies,Model
 2026-06-15 14:07,creditcard.csv,99.62,2849,Isolation Forest
 2026-06-15 14:14,creditcard.csv,99.62,218066,DBSCAN
+2026-09-28 22:44,model_metrics.csv,100.0,1,Isolation Forest
+2026-09-28 22:44,model_metrics.csv,100.0,4,DBSCAN
+2026-09-28 22:44,model_metrics.csv,100.0,2,One-Class SVM
+2026-09-28 22:48,Unemployment in India (1).csv,93.29,8,Isolation Forest
+2026-09-28 22:49,Unemployment in India (1).csv,93.29,8,Isolation Forest
+2026-09-28 22:49,Unemployment in India (1).csv,93.29,8,Isolation Forest
+2026-09-28 22:51,Unemployment in India (1).csv,93.29,8,Isolation Forest
+2026-09-28 22:52,Unemployment in India (1).csv,93.29,8,Isolation Forest
+2026-09-28 22:53,Unemployment in India (1).csv,93.29,8,Isolation Forest
+2026-09-28 22:55,Unemployment_Rate_upto_11_2020.csv,100.0,3,Isolation Forest
+2026-09-28 22:55,Unemployment_Rate_upto_11_2020.csv,100.0,117,DBSCAN
+2026-09-28 22:56,Unemployment_Rate_upto_11_2020.csv,100.0,14,One-Class SVM
+2026-09-28 22:59,Unemployment_Rate_upto_11_2020.csv,100.0,14,One-Class SVM
+2026-09-28 23:09,Unemployment_Rate_upto_11_2020.csv,100.0,3,Isolation Forest
+2026-09-28 23:09,Unemployment_Rate_upto_11_2020.csv,100.0,117,DBSCAN
+2026-09-28 23:09,Unemployment_Rate_upto_11_2020.csv,100.0,14,One-Class SVM
+2026-09-28 23:15,Unemployment_Rate_upto_11_2020.csv,100.0,3,Isolation Forest
+2026-09-28 23:22,Unemployment_Rate_upto_11_2020.csv,100.0,3,Isolation Forest
+2026-09-28 23:22,Unemployment_Rate_upto_11_2020.csv,100.0,3,Isolation Forest
