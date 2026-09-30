@@ -20,3 +20,34 @@ Date,Dataset,Quality Score,Anomalies,Model
 2026-09-28 23:15,Unemployment_Rate_upto_11_2020.csv,100.0,3,Isolation Forest
 2026-09-28 23:22,Unemployment_Rate_upto_11_2020.csv,100.0,3,Isolation Forest
 2026-09-28 23:22,Unemployment_Rate_upto_11_2020.csv,100.0,3,Isolation Forest
+2026-09-28 23:54,winequality - winequality.csv,81.98,65,Isolation Forest
+2026-09-28 23:54,winequality - winequality.csv,81.98,65,Isolation Forest
+2026-09-28 23:54,winequality - winequality.csv,81.98,65,Isolation Forest
+2026-09-28 23:54,winequality - winequality.csv,81.98,65,Isolation Forest
+2026-09-28 23:54,winequality - winequality.csv,81.98,65,Isolation Forest
+2026-09-28 23:54,winequality - winequality.csv,81.98,65,Isolation Forest
+2026-09-28 23:55,winequality - winequality.csv,81.98,65,Isolation Forest
+2026-09-28 23:55,winequality - winequality.csv,81.98,65,Isolation Forest
+2026-09-28 23:55,winequality - winequality.csv,81.98,65,Isolation Forest
+2026-09-28 23:55,winequality - winequality.csv,81.98,65,Isolation Forest
+2026-09-28 23:55,winequality - winequality.csv,81.98,65,Isolation Forest
+2026-09-28 23:55,winequality - winequality.csv,81.98,65,Isolation Forest
+2026-09-28 23:56,winequality - winequality.csv,81.98,65,Isolation Forest
+2026-09-28 23:56,winequality - winequality.csv,81.98,65,Isolation Forest
+2026-09-29 00:03,winequality - winequality.csv,81.98,65,Isolation Forest
+2026-09-30 11:32,winequality - winequality.csv,81.98,65,Isolation Forest
+2026-09-30 11:33,winequality - winequality.csv,81.98,65,Isolation Forest
+2026-09-30 11:37,winequality - winequality.csv,81.98,65,Isolation Forest
+2026-09-30 11:39,winequality - winequality.csv,81.98,65,Isolation Forest
+2026-09-30 11:43,winequality - winequality.csv,81.98,65,Isolation Forest
+2026-09-30 11:44,winequality - winequality.csv,81.98,65,Isolation Forest
+2026-09-30 11:50,winequality - winequality.csv,81.98,65,Isolation Forest
+2026-09-30 11:58,phpB0xrNj.csv,100.0,78,Isolation Forest
+2026-09-30 11:58,phpB0xrNj.csv,100.0,7797,DBSCAN
+2026-09-30 11:59,phpB0xrNj.csv,100.0,390,One-Class SVM
+2026-09-30 12:05,phpB0xrNj.csv,100.0,78,Isolation Forest
+2026-09-30 12:05,phpB0xrNj.csv,100.0,7797,DBSCAN
+2026-09-30 12:14,phpB0xrNj.csv,100.0,78,Isolation Forest
+2026-09-30 12:15,phpB0xrNj.csv,100.0,78,Isolation Forest
+2026-09-30 12:15,phpB0xrNj.csv,100.0,78,Isolation Forest
+2026-09-30 12:15,phpB0xrNj.csv,100.0,78,Isolation Forest

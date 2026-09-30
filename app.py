@@ -317,6 +317,161 @@ if uploaded_file and page == "Anomaly Detection":
         anomaly_df.head(50),
         use_container_width=True
     )
+        # ==============================================
+    # ANOMALY RESOLUTION
+    # ==============================================
+
+    st.subheader("🧹 Resolve Detected Anomalies")
+
+    if anomaly_count == 0:
+
+        st.success(
+            "✅ No anomalies detected. "
+            "Your dataset does not require anomaly resolution."
+        )
+
+    else:
+
+        st.warning(
+            f"⚠️ {anomaly_count} anomalous rows were detected."
+        )
+
+        st.write(
+            "These rows may represent unusual or unexpected "
+            "patterns in the dataset."
+        )
+
+        resolution_method = st.selectbox(
+            "Choose an action",
+            [
+                "Keep anomalies",
+                "Remove anomalies"
+            ],
+            key="anomaly_resolution"
+        )
+
+        if resolution_method == "Keep anomalies":
+
+            st.info(
+                "ℹ️ Anomalies will be kept in the dataset."
+            )
+
+        elif resolution_method == "Remove anomalies":
+
+            if st.button(
+                "🧹 Remove Detected Anomalies",
+                key="remove_ml_anomalies"
+            ):
+
+                cleaned_anomaly_df = result_df[
+                    result_df["anomaly"] != -1
+                ].copy()
+
+                # Remove ML anomaly column
+                cleaned_anomaly_df = (
+                    cleaned_anomaly_df
+                    .drop(columns=["anomaly"])
+                    .reset_index(drop=True)
+                )
+
+                removed_count = (
+                    len(result_df) -
+                    len(cleaned_anomaly_df)
+                )
+
+                st.success(
+                    f"✅ Successfully removed "
+                    f"{removed_count} anomalous rows!"
+                )
+
+                col1, col2 = st.columns(2)
+
+                col1.metric(
+                    "Rows Before",
+                    len(df)
+                )
+
+                col2.metric(
+                    "Rows After",
+                    len(cleaned_anomaly_df)
+                )
+
+                st.subheader(
+                    "📋 Cleaned Dataset Preview"
+                )
+
+                st.dataframe(
+                    cleaned_anomaly_df.head(50),
+                    use_container_width=True
+                )
+
+                # ==============================================
+                # VALIDATION
+                # ==============================================
+
+                st.subheader(
+                    "✅ Cleaned Dataset Validation"
+                )
+
+                remaining_nulls = int(
+                    cleaned_anomaly_df
+                    .isnull()
+                    .sum()
+                    .sum()
+                )
+
+                remaining_duplicates = int(
+                    cleaned_anomaly_df
+                    .duplicated()
+                    .sum()
+                )
+
+                validation_col1, validation_col2 = (
+                    st.columns(2)
+                )
+
+                validation_col1.metric(
+                    "Remaining Null Values",
+                    remaining_nulls
+                )
+
+                validation_col2.metric(
+                    "Remaining Duplicate Rows",
+                    remaining_duplicates
+                )
+
+                if (
+                    remaining_nulls == 0
+                    and remaining_duplicates == 0
+                ):
+
+                    st.success(
+                        "🎉 Dataset validation passed!"
+                    )
+
+                else:
+
+                    st.warning(
+                        "⚠️ Some data quality issues "
+                        "still remain."
+                    )
+
+                # ==============================================
+                # DOWNLOAD
+                # ==============================================
+
+                final_csv = (
+                    cleaned_anomaly_df
+                    .to_csv(index=False)
+                )
+
+                st.download_button(
+                    "⬇️ Download Clean Dataset",
+                    final_csv,
+                    "DataPulse_clean_dataset.csv",
+                    "text/csv",
+                    key="download_final_clean_dataset"
+                )
         # --------------------------------
     # ANOMALY VISUALIZATION
     # --------------------------------
@@ -681,6 +836,184 @@ if uploaded_file and page == "Data Cleaning":
                 "DataPulse_no_duplicates.csv",
                 "text/csv"
             )
+                # ==============================================
+    # OUTLIER DETECTION & RESOLUTION
+    # ==============================================
+
+    st.subheader("📈 Outlier Detection & Resolution")
+
+    numeric_columns = df.select_dtypes(
+        include=np.number
+    ).columns.tolist()
+
+    if not numeric_columns:
+
+        st.info(
+            "ℹ️ No numerical columns available "
+            "for outlier detection."
+        )
+
+    else:
+
+        outlier_column = st.selectbox(
+            "Select numerical column",
+            numeric_columns,
+            key="outlier_column"
+        )
+
+        # Calculate Q1 and Q3
+        Q1 = df[outlier_column].quantile(0.25)
+        Q3 = df[outlier_column].quantile(0.75)
+
+        # Calculate IQR
+        IQR = Q3 - Q1
+
+        # Define limits
+        lower_limit = Q1 - 1.5 * IQR
+        upper_limit = Q3 + 1.5 * IQR
+
+        # Find outliers
+        outlier_mask = (
+            (df[outlier_column] < lower_limit) |
+            (df[outlier_column] > upper_limit)
+        )
+
+        outlier_count = int(
+            outlier_mask.sum()
+        )
+
+        st.metric(
+            "Outliers Detected",
+            outlier_count
+        )
+
+        st.write(
+            f"Lower Limit: **{lower_limit:.2f}**"
+        )
+
+        st.write(
+            f"Upper Limit: **{upper_limit:.2f}**"
+        )
+
+        if outlier_count == 0:
+
+            st.success(
+                "✅ No outliers found in this column!"
+            )
+
+        else:
+
+            st.warning(
+                f"⚠️ {outlier_count} outliers found."
+            )
+
+            st.write("### 🔎 Outlier Preview")
+
+            outlier_df = df[
+                outlier_mask
+            ]
+
+            st.dataframe(
+                outlier_df.head(50),
+                use_container_width=True
+            )
+
+            # ==============================================
+            # OUTLIER CLEANING METHOD
+            # ==============================================
+
+            st.subheader(
+                "🔧 Choose Outlier Resolution"
+            )
+
+            outlier_method = st.selectbox(
+                "Select cleaning action",
+                [
+                    "Remove outliers",
+                    "Replace outliers with Median",
+                    "Cap outliers"
+                ],
+                key="outlier_method"
+            )
+
+            if st.button(
+                "🧹 Resolve Outliers"
+            ):
+
+                cleaned_outlier_df = df.copy()
+
+                if outlier_method == "Remove outliers":
+
+                    cleaned_outlier_df = (
+                        cleaned_outlier_df[
+                            ~outlier_mask
+                        ]
+                        .reset_index(drop=True)
+                    )
+
+                elif (
+                    outlier_method ==
+                    "Replace outliers with Median"
+                ):
+
+                    median_value = (
+                        cleaned_outlier_df[
+                            outlier_column
+                        ].median()
+                    )
+
+                    cleaned_outlier_df.loc[
+                        outlier_mask,
+                        outlier_column
+                    ] = median_value
+
+                elif outlier_method == "Cap outliers":
+
+                    cleaned_outlier_df.loc[
+                        cleaned_outlier_df[
+                            outlier_column
+                        ] < lower_limit,
+                        outlier_column
+                    ] = lower_limit
+
+                    cleaned_outlier_df.loc[
+                        cleaned_outlier_df[
+                            outlier_column
+                        ] > upper_limit,
+                        outlier_column
+                    ] = upper_limit
+
+                st.success(
+                    "✅ Outliers resolved successfully!"
+                )
+
+                st.subheader(
+                    "📋 Cleaned Dataset Preview"
+                )
+
+                st.dataframe(
+                    cleaned_outlier_df.head(50),
+                    use_container_width=True
+                )
+
+                st.metric(
+                    "Rows After Cleaning",
+                    len(cleaned_outlier_df)
+                )
+
+                cleaned_outlier_csv = (
+                    cleaned_outlier_df.to_csv(
+                        index=False
+                    )
+                )
+
+                st.download_button(
+                    "⬇️ Download Dataset Without Outliers",
+                    cleaned_outlier_csv,
+                    "DataPulse_no_outliers.csv",
+                    "text/csv",
+                    key="download_no_outliers"
+                )
       
 
 # ==============================================
@@ -689,7 +1022,7 @@ if uploaded_file and page == "Data Cleaning":
 
 if uploaded_file and page == "Visualizations":
 
-    st.header("📈 Data Visualizations")
+    #st.header("📈 Data Visualizations")
 
 
     numeric_columns = df.select_dtypes(
