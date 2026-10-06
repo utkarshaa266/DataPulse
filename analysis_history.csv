@@ -51,3 +51,18 @@ Date,Dataset,Quality Score,Anomalies,Model
 2026-09-30 12:15,phpB0xrNj.csv,100.0,78,Isolation Forest
 2026-09-30 12:15,phpB0xrNj.csv,100.0,78,Isolation Forest
 2026-09-30 12:15,phpB0xrNj.csv,100.0,78,Isolation Forest
+2026-10-01 16:40,winequality - winequality.csv,81.98,65,Isolation Forest
+2026-10-03 12:29,winequality - winequality.csv,81.98,65,Isolation Forest
+2026-10-03 12:30,winequality - winequality.csv,81.98,65,Isolation Forest
+2026-10-03 12:30,winequality - winequality.csv,81.98,65,Isolation Forest
+2026-10-03 12:30,winequality - winequality.csv,81.98,65,Isolation Forest
+2026-10-06 16:28,winequality - winequality.csv,81.98,65,Isolation Forest
+2026-10-06 16:30,winequality - winequality.csv,81.98,65,Isolation Forest
+2026-10-06 16:31,winequality - winequality.csv,81.98,65,Isolation Forest
+2026-10-06 19:43,winequality - winequality.csv,81.98,65,Isolation Forest
+2026-10-06 19:43,winequality - winequality.csv,81.98,6270,DBSCAN
+2026-10-06 19:43,winequality - winequality.csv,81.98,334,One-Class SVM
+2026-10-06 19:47,phpB0xrNj.csv,100.0,78,Isolation Forest
+2026-10-06 19:47,phpB0xrNj.csv,100.0,7797,DBSCAN
+2026-10-06 19:47,phpB0xrNj.csv,100.0,390,One-Class SVM
+2026-10-06 19:58,winequality - winequality.csv,81.98,65,Isolation Forest
