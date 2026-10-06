@@ -3,12 +3,31 @@
 # DATAPULSE
 # AI-POWERED DATA QUALITY & ANOMALY DETECTION PLATFORM
 # ============================================================
-
+from sklearn.datasets import make_classification, make_regression
 import numpy as np
 import pandas as pd
 import streamlit as st
 import plotly.express as px
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder, StandardScaler, OneHotEncoder
 
+from sklearn.linear_model import LogisticRegression, LinearRegression
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
+from sklearn.ensemble import (
+    RandomForestClassifier,
+    RandomForestRegressor,
+    GradientBoostingClassifier,
+    GradientBoostingRegressor
+)
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    mean_absolute_error,
+    mean_squared_error,
+    r2_score
+)
 from streamlit_autorefresh import st_autorefresh
 
 # ============================================================
@@ -137,7 +156,327 @@ st.subheader(
     "AI-Powered Data Quality & Anomaly Detection Platform"
 )
 
+# ============================================================
+# SYNTHETIC DATASET GENERATOR
+# ============================================================
 
+def generate_synthetic_dataset(
+    dataset_type,
+    rows,
+    features,
+    anomaly_percentage=5,
+    missing_percentage=0,
+    duplicate_percentage=0,
+    outlier_percentage=0,
+    noise_level=0.1
+):
+
+    try:
+
+        # ----------------------------------------------------
+        # CLASSIFICATION DATASET
+        # ----------------------------------------------------
+
+        if dataset_type == "Classification":
+
+            X, y = make_classification(
+                n_samples=rows,
+                n_features=features,
+                n_informative=max(2, int(features * 0.6)),
+                n_redundant=0,
+                n_repeated=0,
+                n_classes=2,
+                random_state=42
+            )
+
+            columns = [
+                f"Feature_{i+1}"
+                for i in range(features)
+            ]
+
+            df = pd.DataFrame(
+                X,
+                columns=columns
+            )
+
+            df["Target"] = y
+
+
+        # ----------------------------------------------------
+        # REGRESSION DATASET
+        # ----------------------------------------------------
+
+        elif dataset_type == "Regression":
+
+            X, y = make_regression(
+                n_samples=rows,
+                n_features=features,
+                n_informative=max(
+                    2,
+                    min(
+                        features,
+                        int(features * 0.7)
+                    )
+                ),
+                noise=noise_level * 10,
+                random_state=42
+            )
+
+            columns = [
+                f"Feature_{i+1}"
+                for i in range(features)
+            ]
+
+            df = pd.DataFrame(
+                X,
+                columns=columns
+            )
+
+            df["Target"] = y
+
+
+        # ----------------------------------------------------
+        # ANOMALY DETECTION DATASET
+        # ----------------------------------------------------
+
+        elif dataset_type == "Anomaly Detection":
+
+            X = np.random.normal(
+                loc=0,
+                scale=1,
+                size=(rows, features)
+            )
+
+            df = pd.DataFrame(
+                X,
+                columns=[
+                    f"Feature_{i+1}"
+                    for i in range(features)
+                ]
+            )
+
+            # Inject anomalies
+            anomaly_count = int(
+                rows * anomaly_percentage / 100
+            )
+
+            if anomaly_count > 0:
+
+                anomaly_indices = np.random.choice(
+                    rows,
+                    anomaly_count,
+                    replace=False
+                )
+
+                for index in anomaly_indices:
+
+                    df.iloc[index] = (
+                        df.iloc[index] * 6
+                    )
+
+
+        # ----------------------------------------------------
+        # MIXED DATASET
+        # ----------------------------------------------------
+
+        elif dataset_type == "Mixed Dataset":
+
+            numeric_features = max(
+                2,
+                features - 2
+            )
+
+            X = np.random.normal(
+                loc=5000,
+                scale=500,
+                size=(rows, numeric_features)
+            )
+
+            df = pd.DataFrame(
+                X,
+                columns=[
+                    f"Numeric_{i+1}"
+                    for i in range(numeric_features)
+                ]
+            )
+
+            df["Category"] = np.random.choice(
+                ["A", "B", "C"],
+                rows
+            )
+
+            df["Status"] = np.random.choice(
+                ["Active", "Inactive"],
+                rows
+            )
+
+
+        else:
+
+            raise ValueError(
+                "Invalid dataset type selected."
+            )
+
+
+        # ----------------------------------------------------
+        # ADD NOISE
+        # ----------------------------------------------------
+
+        numeric_columns = df.select_dtypes(
+            include=np.number
+        ).columns.tolist()
+
+        target_column = (
+            "Target"
+            if "Target" in numeric_columns
+            else None
+        )
+
+        feature_columns = [
+            col
+            for col in numeric_columns
+            if col != target_column
+        ]
+
+        if noise_level > 0 and feature_columns:
+
+            noise = np.random.normal(
+                0,
+                noise_level,
+                size=(
+                    len(df),
+                    len(feature_columns)
+                )
+            )
+
+            df[feature_columns] = (
+                df[feature_columns] + noise
+            )
+
+
+        # ----------------------------------------------------
+        # INJECT OUTLIERS
+        # ----------------------------------------------------
+
+        if (
+            outlier_percentage > 0
+            and feature_columns
+        ):
+
+            outlier_count = int(
+                rows * outlier_percentage / 100
+            )
+
+            if outlier_count > 0:
+
+                outlier_indices = np.random.choice(
+                    len(df),
+                    min(
+                        outlier_count,
+                        len(df)
+                    ),
+                    replace=False
+                )
+
+                for col in feature_columns:
+
+                    df.loc[
+                        outlier_indices,
+                        col
+                    ] *= 8
+
+
+        # ----------------------------------------------------
+        # INJECT MISSING VALUES
+        # ----------------------------------------------------
+
+        if (
+            missing_percentage > 0
+            and len(df) > 0
+        ):
+
+            total_cells = (
+                len(df) * len(df.columns)
+            )
+
+            missing_count = int(
+                total_cells *
+                missing_percentage /
+                100
+            )
+
+            if missing_count > 0:
+
+                for _ in range(missing_count):
+
+                    row_index = np.random.randint(
+                        0,
+                        len(df)
+                    )
+
+                    column_index = np.random.randint(
+                        0,
+                        len(df.columns)
+                    )
+
+                    df.iat[
+                        row_index,
+                        column_index
+                    ] = np.nan
+
+
+        # ----------------------------------------------------
+        # ADD DUPLICATES
+        # ----------------------------------------------------
+
+        if (
+            duplicate_percentage > 0
+            and len(df) > 0
+        ):
+
+            duplicate_count = int(
+                len(df) *
+                duplicate_percentage /
+                100
+            )
+
+            if duplicate_count > 0:
+
+                duplicate_rows = df.sample(
+                    n=min(
+                        duplicate_count,
+                        len(df)
+                    ),
+                    random_state=42
+                )
+
+                df = pd.concat(
+                    [
+                        df,
+                        duplicate_rows
+                    ],
+                    ignore_index=True
+                )
+
+
+        # ----------------------------------------------------
+        # SHUFFLE DATASET
+        # ----------------------------------------------------
+
+        df = df.sample(
+            frac=1,
+            random_state=42
+        ).reset_index(drop=True)
+
+
+        return df
+
+
+    except Exception as e:
+
+        raise RuntimeError(
+            f"Synthetic dataset generation failed: {e}"
+        )
 # ============================================================
 # FILE UPLOAD
 # ============================================================
@@ -159,10 +498,21 @@ if uploaded_file is not None:
             uploaded_file
         )
 
+        # New upload replaces previously generated dataset
+        if "generated_dataset" in st.session_state:
+            del st.session_state["generated_dataset"]
+
     except pd.errors.EmptyDataError:
 
         st.error(
             "❌ The uploaded CSV is empty."
+        )
+        st.stop()
+
+    except pd.errors.ParserError:
+
+        st.error(
+            "❌ The CSV format is invalid or corrupted."
         )
         st.stop()
 
@@ -174,6 +524,218 @@ if uploaded_file is not None:
         st.stop()
 
 
+# ============================================================
+# USE GENERATED DATASET
+# ============================================================
+
+if (
+    df is None
+    and page == "🚀 Dataset Workflow"
+    and "generated_dataset" in st.session_state
+):
+
+    df = st.session_state[
+        "generated_dataset"
+    ]
+
+# ============================================================
+# SYNTHETIC DATASET GENERATOR
+# ============================================================
+
+if page == "🚀 Dataset Workflow":
+
+    st.sidebar.divider()
+
+    st.sidebar.subheader(
+        "🧬 Dataset Source"
+    )
+
+    dataset_source = st.sidebar.radio(
+        "Choose dataset source",
+        [
+            "Upload CSV",
+            "Generate Synthetic Dataset"
+        ],
+        key="dataset_source"
+    )
+
+    if dataset_source == "Generate Synthetic Dataset":
+
+        st.header(
+            "🧬 Smart Synthetic Dataset Generator"
+        )
+
+        st.write(
+            "Generate controlled datasets with "
+            "realistic data-quality problems for "
+            "testing and demonstrating DataPulse."
+        )
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+
+            synthetic_type = st.selectbox(
+                "Dataset Type",
+                [
+                    "Classification",
+                    "Regression",
+                    "Anomaly Detection",
+                    "Mixed Dataset"
+                ]
+            )
+
+            synthetic_rows = st.slider(
+                "Number of Rows",
+                min_value=100,
+                max_value=10000,
+                value=5000,
+                step=100
+            )
+
+            synthetic_features = st.slider(
+                "Number of Features",
+                min_value=2,
+                max_value=15,
+                value=8
+            )
+
+        with col2:
+
+            noise_level = st.slider(
+                "Noise Level",
+                min_value=0.0,
+                max_value=1.0,
+                value=0.1,
+                step=0.05
+            )
+
+            anomaly_percentage = st.slider(
+                "Anomaly Percentage",
+                min_value=0,
+                max_value=20,
+                value=5,
+                step=1
+            )
+
+            missing_percentage = st.slider(
+                "Missing Value Percentage",
+                min_value=0,
+                max_value=20,
+                value=5,
+                step=1
+            )
+
+            duplicate_percentage = st.slider(
+                "Duplicate Percentage",
+                min_value=0,
+                max_value=10,
+                value=2,
+                step=1
+            )
+
+            outlier_percentage = st.slider(
+                "Outlier Percentage",
+                min_value=0,
+                max_value=10,
+                value=3,
+                step=1
+            )
+
+        st.info(
+            "💡 DataPulse will intentionally introduce "
+            "data-quality issues so you can demonstrate "
+            "cleaning and anomaly detection."
+        )
+
+        if st.button(
+            "🧬 Generate Dataset",
+            type="primary",
+            use_container_width=True
+        ):
+
+            try:
+
+                generated_df = (
+                    generate_synthetic_dataset(
+                        dataset_type=synthetic_type,
+                        rows=synthetic_rows,
+                        features=synthetic_features,
+                        anomaly_percentage=anomaly_percentage,
+                        missing_percentage=missing_percentage,
+                        duplicate_percentage=duplicate_percentage,
+                        outlier_percentage=outlier_percentage,
+                        noise_level=noise_level
+                    )
+                )
+
+                st.session_state[
+                    "generated_dataset"
+                ] = generated_df
+
+                st.success(
+                    "✅ Synthetic dataset generated successfully!"
+                )
+
+            except Exception as e:
+
+                st.error(
+                    f"❌ Dataset generation failed: {e}"
+                )
+
+    # Use generated dataset
+    if "generated_dataset" in st.session_state:
+
+        df = st.session_state[
+            "generated_dataset"
+        ]
+
+        st.divider()
+
+        st.subheader(
+            "📊 Generated Dataset"
+        )
+
+        col1, col2, col3 = st.columns(3)
+
+        col1.metric(
+            "Rows",
+            df.shape[0]
+        )
+
+        col2.metric(
+            "Columns",
+            df.shape[1]
+        )
+
+        col3.metric(
+            "Missing Values",
+            int(
+                df.isnull()
+                .sum()
+                .sum()
+            )
+        )
+
+        st.dataframe(
+            df.head(20),
+            use_container_width=True
+        )
+
+        generated_csv = (
+            df.to_csv(
+                index=False
+            )
+            .encode("utf-8")
+        )
+
+        st.download_button(
+            "⬇️ Download Generated Dataset",
+            generated_csv,
+            "DataPulse_synthetic_dataset.csv",
+            "text/csv",
+            key="synthetic_download"
+        )
 # ============================================================
 # HELPER FUNCTIONS
 # ============================================================
@@ -362,6 +924,150 @@ def find_regression_target(data):
 
     return None
 
+# ============================================================
+# MODEL COMPARISON CHARTS
+# ============================================================
+
+def show_model_comparison_charts(
+    results_df,
+    problem_type
+):
+
+    if results_df is None or results_df.empty:
+        return
+
+    st.subheader("📊 Model Performance Comparison")
+
+    # ========================================================
+    # CLASSIFICATION
+    # ========================================================
+
+    if problem_type == "Classification":
+
+        # -----------------------------------------------
+        # PERFORMANCE METRICS
+        # -----------------------------------------------
+
+        metric_columns = [
+            "Accuracy",
+            "Precision",
+            "Recall",
+            "F1 Score"
+        ]
+
+        available_metrics = [
+            metric
+            for metric in metric_columns
+            if metric in results_df.columns
+        ]
+
+        if available_metrics:
+
+            chart_data = results_df[
+                ["Model"] + available_metrics
+            ].copy()
+
+            chart_data = chart_data.set_index(
+                "Model"
+            )
+
+            st.bar_chart(
+                chart_data,
+                use_container_width=True
+            )
+
+        # -----------------------------------------------
+        # BEST MODEL
+        # -----------------------------------------------
+
+        if "F1 Score" in results_df.columns:
+
+            best_row = results_df.iloc[0]
+
+            st.success(
+                f"🏆 Best Classification Model: "
+                f"**{best_row['Model']}** "
+                f"(F1 Score: {best_row['F1 Score']:.4f})"
+            )
+            
+
+
+    # ========================================================
+    # REGRESSION
+    # ========================================================
+
+    elif problem_type == "Regression":
+
+        # -----------------------------------------------
+        # R² COMPARISON
+        # -----------------------------------------------
+
+        if "R²" in results_df.columns:
+
+            r2_data = results_df[
+                ["Model", "R²"]
+            ].copy()
+
+            r2_data = r2_data.set_index(
+                "Model"
+            )
+
+            st.markdown(
+                "#### 🎯 R² Score Comparison"
+            )
+
+            st.bar_chart(
+                r2_data,
+                use_container_width=True
+            )
+
+        # -----------------------------------------------
+        # ERROR METRICS
+        # -----------------------------------------------
+
+        error_metrics = [
+            "MAE",
+            "RMSE"
+        ]
+
+        available_errors = [
+            metric
+            for metric in error_metrics
+            if metric in results_df.columns
+        ]
+
+        if available_errors:
+
+            error_data = results_df[
+                ["Model"] + available_errors
+            ].copy()
+
+            error_data = error_data.set_index(
+                "Model"
+            )
+
+            st.markdown(
+                "#### 📉 Error Comparison"
+            )
+
+            st.bar_chart(
+                error_data,
+                use_container_width=True
+            )
+
+        # -----------------------------------------------
+        # BEST MODEL
+        # -----------------------------------------------
+
+        if "R²" in results_df.columns:
+
+            best_row = results_df.iloc[0]
+
+            st.success(
+                f"🏆 Best Regression Model: "
+                f"**{best_row['Model']}** "
+                f"(R²: {best_row['R²']:.4f})"
+            )
 
 def run_classification(data, target):
 
@@ -372,6 +1078,10 @@ def run_classification(data, target):
     )
 
     y = work_df[target]
+
+    # --------------------------------------------------------
+    # IDENTIFY FEATURES
+    # --------------------------------------------------------
 
     numeric_features = (
         X.select_dtypes(
@@ -391,7 +1101,10 @@ def run_classification(data, target):
             "No usable feature columns found."
         )
 
-    # Remove rows where target is missing
+    # --------------------------------------------------------
+    # REMOVE MISSING TARGET ROWS
+    # --------------------------------------------------------
+
     valid_target = y.notna()
 
     X = X.loc[
@@ -401,6 +1114,10 @@ def run_classification(data, target):
     y = y.loc[
         valid_target
     ]
+
+    # --------------------------------------------------------
+    # VALIDATE TARGET
+    # --------------------------------------------------------
 
     if y.nunique() < 2:
 
@@ -416,12 +1133,19 @@ def run_classification(data, target):
             "for automatic classification."
         )
 
-    # Encode target
+    # --------------------------------------------------------
+    # ENCODE TARGET
+    # --------------------------------------------------------
+
     encoder = LabelEncoder()
 
     y_encoded = encoder.fit_transform(
         y.astype(str)
     )
+
+    # --------------------------------------------------------
+    # NUMERIC PIPELINE
+    # --------------------------------------------------------
 
     numeric_pipeline = Pipeline(
         steps=[
@@ -438,6 +1162,10 @@ def run_classification(data, target):
         ]
     )
 
+    # --------------------------------------------------------
+    # CATEGORICAL PIPELINE
+    # --------------------------------------------------------
+
     categorical_pipeline = Pipeline(
         steps=[
             (
@@ -448,14 +1176,16 @@ def run_classification(data, target):
             ),
             (
                 "encoder",
-                __import__(
-                    "sklearn"
-                ).preprocessing.OneHotEncoder(
+                OneHotEncoder(
                     handle_unknown="ignore"
                 )
             )
         ]
     )
+
+    # --------------------------------------------------------
+    # COLUMN TRANSFORMER
+    # --------------------------------------------------------
 
     transformers = []
 
@@ -483,6 +1213,10 @@ def run_classification(data, target):
         transformers=transformers
     )
 
+    # --------------------------------------------------------
+    # TRAIN TEST SPLIT
+    # --------------------------------------------------------
+
     X_train, X_test, y_train, y_test = (
         train_test_split(
             X,
@@ -492,6 +1226,10 @@ def run_classification(data, target):
             stratify=y_encoded
         )
     )
+
+    # --------------------------------------------------------
+    # MODELS
+    # --------------------------------------------------------
 
     models = {
 
@@ -508,7 +1246,8 @@ def run_classification(data, target):
         "Random Forest":
             RandomForestClassifier(
                 n_estimators=100,
-                random_state=42
+                random_state=42,
+                n_jobs=-1
             ),
 
         "Gradient Boosting":
@@ -520,6 +1259,10 @@ def run_classification(data, target):
     results = []
 
     trained_models = {}
+
+    # --------------------------------------------------------
+    # TRAIN MODELS
+    # --------------------------------------------------------
 
     for name, model in models.items():
 
@@ -546,6 +1289,10 @@ def run_classification(data, target):
             predictions = pipeline.predict(
                 X_test
             )
+
+            # -----------------------------------------------
+            # METRICS
+            # -----------------------------------------------
 
             accuracy = accuracy_score(
                 y_test,
@@ -574,19 +1321,24 @@ def run_classification(data, target):
             )
 
             results.append({
+
                 "Model": name,
+
                 "Accuracy": round(
                     accuracy,
                     4
                 ),
+
                 "Precision": round(
                     precision,
                     4
                 ),
+
                 "Recall": round(
                     recall,
                     4
                 ),
+
                 "F1 Score": round(
                     f1,
                     4
@@ -598,7 +1350,12 @@ def run_classification(data, target):
             ] = pipeline
 
         except Exception:
+
             continue
+
+    # --------------------------------------------------------
+    # CHECK RESULTS
+    # --------------------------------------------------------
 
     if not results:
 
@@ -610,27 +1367,130 @@ def run_classification(data, target):
         results
     )
 
+    # --------------------------------------------------------
+    # SORT BY F1 SCORE
+    # --------------------------------------------------------
+
     results_df = results_df.sort_values(
         "F1 Score",
         ascending=False
-    ).reset_index(drop=True)
+    ).reset_index(
+        drop=True
+    )
+
+    # --------------------------------------------------------
+    # BEST MODEL
+    # --------------------------------------------------------
 
     best_model_name = results_df.iloc[0][
         "Model"
     ]
 
+    best_pipeline = trained_models[
+        best_model_name
+    ]
+
+    # --------------------------------------------------------
+    # FEATURE IMPORTANCE
+    # --------------------------------------------------------
+
+    feature_importance_df = None
+
+    try:
+
+        trained_preprocessor = (
+            best_pipeline.named_steps[
+                "preprocessor"
+            ]
+        )
+
+        trained_model = (
+            best_pipeline.named_steps[
+                "model"
+            ]
+        )
+
+        feature_names = (
+            trained_preprocessor
+            .get_feature_names_out()
+        )
+
+        # Tree-based models
+        if hasattr(
+            trained_model,
+            "feature_importances_"
+        ):
+
+            importances = (
+                trained_model
+                .feature_importances_
+            )
+
+        # Logistic Regression
+        elif hasattr(
+            trained_model,
+            "coef_"
+        ):
+
+            importances = np.mean(
+                np.abs(
+                    trained_model.coef_
+                ),
+                axis=0
+            )
+
+        else:
+
+            importances = None
+
+        if importances is not None:
+
+            feature_importance_df = pd.DataFrame({
+
+                "Feature":
+                    feature_names,
+
+                "Importance":
+                    importances
+
+            })
+
+            feature_importance_df = (
+                feature_importance_df
+                .sort_values(
+                    "Importance",
+                    ascending=False
+                )
+                .reset_index(
+                    drop=True
+                )
+            )
+
+    except Exception:
+
+        feature_importance_df = None
+
+    # --------------------------------------------------------
+    # RETURN RESULTS
+    # --------------------------------------------------------
+
     return (
         results_df,
         best_model_name,
-        trained_models[
-            best_model_name
-        ]
+        best_pipeline,
+        feature_importance_df
     )
-
+# ============================================================
+# REGRESSION MODEL COMPARISON + FEATURE IMPORTANCE
+# ============================================================
 
 def run_regression(data, target):
 
     work_df = data.copy()
+
+    # --------------------------------------------------------
+    # SEPARATE FEATURES AND TARGET
+    # --------------------------------------------------------
 
     X = work_df.drop(
         columns=[target]
@@ -638,8 +1498,7 @@ def run_regression(data, target):
 
     y = work_df[target]
 
-    # Regression currently uses numerical
-    # features for a stable automatic pipeline
+    # Regression uses numerical features
     X = X.select_dtypes(
         include=np.number
     )
@@ -651,6 +1510,10 @@ def run_regression(data, target):
             "for regression."
         )
 
+    # --------------------------------------------------------
+    # REMOVE MISSING TARGET VALUES
+    # --------------------------------------------------------
+
     valid_rows = y.notna()
 
     X = X.loc[
@@ -661,13 +1524,30 @@ def run_regression(data, target):
         valid_rows
     ]
 
+    # --------------------------------------------------------
+    # HANDLE INFINITE VALUES
+    # --------------------------------------------------------
+
     X = X.replace(
         [np.inf, -np.inf],
         np.nan
     )
 
+    # --------------------------------------------------------
+    # HANDLE MISSING FEATURES
+    # --------------------------------------------------------
+
     X = X.fillna(
         X.median()
+    )
+
+    # --------------------------------------------------------
+    # CLEAN TARGET
+    # --------------------------------------------------------
+
+    y = pd.to_numeric(
+        y,
+        errors="coerce"
     )
 
     y = y.replace(
@@ -685,12 +1565,20 @@ def run_regression(data, target):
         valid_target
     ]
 
+    # --------------------------------------------------------
+    # MINIMUM DATA CHECK
+    # --------------------------------------------------------
+
     if len(X) < 20:
 
         raise ValueError(
             "At least 20 valid rows are recommended "
             "for regression."
         )
+
+    # --------------------------------------------------------
+    # TRAIN TEST SPLIT
+    # --------------------------------------------------------
 
     X_train, X_test, y_train, y_test = (
         train_test_split(
@@ -700,6 +1588,10 @@ def run_regression(data, target):
             random_state=42
         )
     )
+
+    # --------------------------------------------------------
+    # MODELS
+    # --------------------------------------------------------
 
     models = {
 
@@ -714,7 +1606,8 @@ def run_regression(data, target):
         "Random Forest":
             RandomForestRegressor(
                 n_estimators=100,
-                random_state=42
+                random_state=42,
+                n_jobs=-1
             ),
 
         "Gradient Boosting":
@@ -726,6 +1619,10 @@ def run_regression(data, target):
     results = []
 
     trained_models = {}
+
+    # --------------------------------------------------------
+    # TRAIN AND EVALUATE MODELS
+    # --------------------------------------------------------
 
     for name, model in models.items():
 
@@ -740,10 +1637,18 @@ def run_regression(data, target):
                 X_test
             )
 
+            # -----------------------------------------------
+            # MAE
+            # -----------------------------------------------
+
             mae = mean_absolute_error(
                 y_test,
                 predictions
             )
+
+            # -----------------------------------------------
+            # RMSE
+            # -----------------------------------------------
 
             rmse = np.sqrt(
                 mean_squared_error(
@@ -752,21 +1657,29 @@ def run_regression(data, target):
                 )
             )
 
+            # -----------------------------------------------
+            # R² SCORE
+            # -----------------------------------------------
+
             r2 = r2_score(
                 y_test,
                 predictions
             )
 
             results.append({
+
                 "Model": name,
+
                 "MAE": round(
                     mae,
                     4
                 ),
+
                 "RMSE": round(
                     rmse,
                     4
                 ),
+
                 "R²": round(
                     r2,
                     4
@@ -778,7 +1691,12 @@ def run_regression(data, target):
             ] = model
 
         except Exception:
+
             continue
+
+    # --------------------------------------------------------
+    # CHECK RESULTS
+    # --------------------------------------------------------
 
     if not results:
 
@@ -790,24 +1708,432 @@ def run_regression(data, target):
         results
     )
 
+    # --------------------------------------------------------
+    # SORT BY R²
+    # --------------------------------------------------------
+
     results_df = results_df.sort_values(
         "R²",
         ascending=False
-    ).reset_index(drop=True)
+    ).reset_index(
+        drop=True
+    )
+
+    # --------------------------------------------------------
+    # BEST MODEL
+    # --------------------------------------------------------
 
     best_model_name = results_df.iloc[0][
         "Model"
     ]
 
+    best_model = trained_models[
+        best_model_name
+    ]
+
+    # --------------------------------------------------------
+    # FEATURE IMPORTANCE
+    # --------------------------------------------------------
+
+    feature_importance_df = None
+
+    try:
+
+        if hasattr(
+            best_model,
+            "feature_importances_"
+        ):
+
+            feature_importance_df = pd.DataFrame({
+
+                "Feature":
+                    X.columns,
+
+                "Importance":
+                    best_model.feature_importances_
+
+            })
+
+        elif hasattr(
+            best_model,
+            "coef_"
+        ):
+
+            feature_importance_df = pd.DataFrame({
+
+                "Feature":
+                    X.columns,
+
+                "Importance":
+                    np.abs(
+                        best_model.coef_
+                    )
+
+            })
+
+        if feature_importance_df is not None:
+
+            feature_importance_df = (
+                feature_importance_df
+                .sort_values(
+                    "Importance",
+                    ascending=False
+                )
+                .reset_index(
+                    drop=True
+                )
+            )
+
+    except Exception:
+
+        feature_importance_df = None
+
+    # --------------------------------------------------------
+    # RETURN RESULTS
+    # --------------------------------------------------------
+
     return (
         results_df,
         best_model_name,
-        trained_models[
-            best_model_name
-        ]
+        best_model,
+        feature_importance_df
     )
 
+# ============================================================
+# SMART SYNTHETIC DATASET GENERATOR
+# ============================================================
 
+# ============================================================
+# SMART SYNTHETIC DATASET GENERATOR
+# ============================================================
+
+def generate_synthetic_dataset(
+    dataset_type,
+    rows,
+    features,
+    anomaly_percentage=5,
+    missing_percentage=0,
+    duplicate_percentage=0,
+    outlier_percentage=0,
+    noise_level=0.1
+):
+
+    rng = np.random.default_rng(42)
+
+    # --------------------------------------------------------
+    # CLASSIFICATION DATASET
+    # --------------------------------------------------------
+
+    if dataset_type == "Classification":
+
+        X, y = make_classification(
+            n_samples=rows,
+            n_features=features,
+            n_informative=max(
+                2,
+                min(features, int(features * 0.6))
+            ),
+            n_redundant=0,
+            n_repeated=0,
+            n_classes=2,
+            class_sep=1.2,
+            random_state=42
+        )
+
+        columns = [
+            f"Feature_{i+1}"
+            for i in range(features)
+        ]
+
+        generated_df = pd.DataFrame(
+            X,
+            columns=columns
+        )
+
+        generated_df["Target"] = y
+
+
+    # --------------------------------------------------------
+    # REGRESSION DATASET
+    # --------------------------------------------------------
+
+    elif dataset_type == "Regression":
+
+        X, y = make_regression(
+            n_samples=rows,
+            n_features=features,
+            n_informative=max(
+                2,
+                min(features, int(features * 0.7))
+            ),
+            noise=noise_level * 100,
+            random_state=42
+        )
+
+        columns = [
+            f"Feature_{i+1}"
+            for i in range(features)
+        ]
+
+        generated_df = pd.DataFrame(
+            X,
+            columns=columns
+        )
+
+        generated_df["Target"] = y
+
+
+    # --------------------------------------------------------
+    # ANOMALY DETECTION DATASET
+    # --------------------------------------------------------
+
+    elif dataset_type == "Anomaly Detection":
+
+        X = rng.normal(
+            loc=0,
+            scale=1,
+            size=(rows, features)
+        )
+
+        columns = [
+            f"Feature_{i+1}"
+            for i in range(features)
+        ]
+
+        generated_df = pd.DataFrame(
+            X,
+            columns=columns
+        )
+
+        # Number of anomalies
+        anomaly_count = int(
+            rows *
+            anomaly_percentage /
+            100
+        )
+
+        if anomaly_count > 0:
+
+            anomaly_indices = rng.choice(
+                rows,
+                size=min(
+                    anomaly_count,
+                    rows
+                ),
+                replace=False
+            )
+
+            # Make selected rows extreme
+            generated_df.loc[
+                anomaly_indices,
+                columns
+            ] *= 6
+
+
+    # --------------------------------------------------------
+    # MIXED DATASET
+    # --------------------------------------------------------
+
+    elif dataset_type == "Mixed Dataset":
+
+        numeric_count = max(
+            2,
+            features - 2
+        )
+
+        data = {}
+
+        # Numeric columns
+        for i in range(numeric_count):
+
+            data[
+                f"Numeric_{i+1}"
+            ] = rng.normal(
+                5000,
+                500,
+                rows
+            )
+
+        # Category column
+        data["Category"] = rng.choice(
+            [
+                "A",
+                "B",
+                "C",
+                "D"
+            ],
+            rows
+        )
+
+        # Status column
+        data["Status"] = rng.choice(
+            [
+                "Active",
+                "Inactive"
+            ],
+            rows
+        )
+
+        generated_df = pd.DataFrame(
+            data
+        )
+
+
+    else:
+
+        raise ValueError(
+            "Invalid dataset type selected."
+        )
+
+
+    # ========================================================
+    # ADD NOISE
+    # ========================================================
+
+    numeric_columns = generated_df.select_dtypes(
+        include=np.number
+    ).columns.tolist()
+
+    # Do not modify Target
+    feature_numeric_columns = [
+        col
+        for col in numeric_columns
+        if col != "Target"
+    ]
+
+    if (
+        noise_level > 0
+        and feature_numeric_columns
+    ):
+
+        noise = rng.normal(
+            0,
+            noise_level,
+            size=(
+                len(generated_df),
+                len(feature_numeric_columns)
+            )
+        )
+
+        generated_df[
+            feature_numeric_columns
+        ] += noise
+
+
+    # ========================================================
+    # ADD OUTLIERS
+    # ========================================================
+
+    if (
+        outlier_percentage > 0
+        and feature_numeric_columns
+    ):
+
+        outlier_count = int(
+            len(generated_df) *
+            outlier_percentage /
+            100
+        )
+
+        if outlier_count > 0:
+
+            outlier_indices = rng.choice(
+                len(generated_df),
+                size=min(
+                    outlier_count,
+                    len(generated_df)
+                ),
+                replace=False
+            )
+
+            for column in feature_numeric_columns:
+
+                generated_df.loc[
+                    outlier_indices,
+                    column
+                ] *= 8
+
+
+    # ========================================================
+    # ADD MISSING VALUES
+    # ========================================================
+
+    if missing_percentage > 0:
+
+        total_cells = (
+            len(generated_df) *
+            len(generated_df.columns)
+        )
+
+        missing_count = int(
+            total_cells *
+            missing_percentage /
+            100
+        )
+
+        if missing_count > 0:
+
+            for _ in range(missing_count):
+
+                row_index = rng.integers(
+                    0,
+                    len(generated_df)
+                )
+
+                column_index = rng.integers(
+                    0,
+                    len(generated_df.columns)
+                )
+
+                generated_df.iat[
+                    row_index,
+                    column_index
+                ] = np.nan
+
+
+    # ========================================================
+    # ADD DUPLICATES
+    # ========================================================
+
+    if duplicate_percentage > 0:
+
+        duplicate_count = int(
+            len(generated_df) *
+            duplicate_percentage /
+            100
+        )
+
+        if duplicate_count > 0:
+
+            duplicate_rows = generated_df.sample(
+                n=min(
+                    duplicate_count,
+                    len(generated_df)
+                ),
+                random_state=42
+            )
+
+            generated_df = pd.concat(
+                [
+                    generated_df,
+                    duplicate_rows
+                ],
+                ignore_index=True
+            )
+
+
+    # ========================================================
+    # SHUFFLE DATASET
+    # ========================================================
+
+    generated_df = generated_df.sample(
+        frac=1,
+        random_state=42
+    ).reset_index(
+        drop=True
+    )
+
+    return generated_df
 # ============================================================
 # ADVANCED DATASET WORKFLOW
 # ============================================================
@@ -1596,13 +2922,14 @@ if df is not None and page == "🚀 Dataset Workflow":
             try:
 
                 (
-                    classification_results,
-                    best_classification_model,
-                    best_classifier
-                ) = run_classification(
-                    processed_df,
-                    classification_target_selected
-                )
+        classification_results,
+        best_classification_model,
+        best_classifier,
+        classification_feature_importance
+    ) = run_classification(
+        processed_df,
+        classification_target_selected
+    )
 
                 st.subheader(
                     "📊 Model Comparison"
@@ -1617,6 +2944,48 @@ if df is not None and page == "🚀 Dataset Workflow":
                     f"🏆 Best Classification Model: "
                     f"{best_classification_model}"
                 )
+                
+# ============================================================
+# CLASSIFICATION MODEL COMPARISON CHART
+# ============================================================
+
+                show_model_comparison_charts(
+    classification_results,
+    "Classification"
+)
+
+                # ============================================================
+                # CLASSIFICATION FEATURE IMPORTANCE
+                # ============================================================
+
+                if classification_feature_importance is not None:
+
+                    st.subheader(
+        "🔍 Feature Importance"
+    )
+
+                    st.caption(
+        f"Features influencing the "
+        f"{best_classification_model} model"
+    )
+
+                    top_features = (
+        classification_feature_importance
+        .head(10)
+        .copy()
+    )
+
+                    st.dataframe(
+        top_features,
+        use_container_width=True,
+        hide_index=True
+    )
+
+                    fig = px.bar(
+        top_features.set_index(
+            "Feature"
+        )["Importance"]
+    )
 
                 fig = px.bar(
                     classification_results,
@@ -1651,13 +3020,14 @@ if df is not None and page == "🚀 Dataset Workflow":
             try:
 
                 (
-                    regression_results,
-                    best_regression_model,
-                    best_regressor
-                ) = run_regression(
-                    processed_df,
-                    regression_target_selected
-                )
+        regression_results,
+        best_regression_model,
+        best_regressor,
+        regression_feature_importance
+    ) = run_regression(
+        processed_df,
+        regression_target_selected
+    )
 
                 st.subheader(
                     "📊 Model Comparison"
@@ -1672,6 +3042,46 @@ if df is not None and page == "🚀 Dataset Workflow":
                     f"🏆 Best Regression Model: "
                     f"{best_regression_model}"
                 )
+                # ============================================================
+                # REGRESSION MODEL COMPARISON CHART
+                # ============================================================
+
+                show_model_comparison_charts(
+    regression_results,
+    "Regression"
+)
+                # ============================================================
+                # REGRESSION FEATURE IMPORTANCE
+                # ============================================================
+
+                if regression_feature_importance is not None:
+
+                    st.subheader(
+        "🔍 Feature Importance"
+    )
+
+                    st.caption(
+        f"Features influencing the "
+        f"{best_regression_model} model"
+    )
+
+                    top_features = (
+        regression_feature_importance
+        .head(10)
+        .copy()
+    )
+
+                    st.dataframe(
+        top_features,
+        use_container_width=True,
+        hide_index=True
+    )
+
+                    st.bar_chart(
+        top_features.set_index(
+            "Feature"
+        )["Importance"]
+    )
 
                 fig = px.bar(
                     regression_results,
