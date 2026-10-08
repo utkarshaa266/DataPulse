@@ -29,7 +29,124 @@ from sklearn.metrics import (
     r2_score
 )
 from streamlit_autorefresh import st_autorefresh
+# ==============================================
+# DATASET COMPATIBILITY CHECK
+# ==============================================
+def check_dataset_compatibility(df):
+    if df is None:
+        return {
+            "compatible": False,
+            "message": "Please upload a CSV file first.",
+            "rows": 0,
+            "columns": 0,
+            "numeric_columns": 0,
+            "usable_numeric_columns": 0,
+            "missing_values": 0,
+            "duplicates": 0,
+            "infinite_values": 0,
+            "constant_columns": 0,
+            "isolation_forest": False,
+            "dbscan": False,
+            "one_class_svm": False
+        }
 
+    if df.empty:
+        return {
+            "compatible": False,
+            "message": "The uploaded dataset is empty.",
+            "rows": 0,
+            "columns": 0,
+            "numeric_columns": 0,
+            "usable_numeric_columns": 0,
+            "missing_values": 0,
+            "duplicates": 0,
+            "infinite_values": 0,
+            "constant_columns": 0,
+            "isolation_forest": False,
+            "dbscan": False,
+            "one_class_svm": False
+        }
+
+    # Numeric columns
+    numeric_df = df.select_dtypes(include=["number"])
+
+    rows = len(df)
+    columns = len(df.columns)
+    numeric_columns = len(numeric_df.columns)
+
+    # Usable numeric columns
+    usable_numeric_columns = sum(
+        numeric_df[col].notna().any()
+        for col in numeric_df.columns
+    )
+
+    # Missing values
+    missing_values = int(
+        df.isnull().sum().sum()
+    )
+
+    # Duplicate rows
+    duplicates = int(
+        df.duplicated().sum()
+    )
+
+    # Infinite values
+    infinite_values = 0
+
+    if not numeric_df.empty:
+        infinite_values = int(
+            numeric_df.isin(
+                [float("inf"), float("-inf")]
+            ).sum().sum()
+        )
+
+    # Constant columns
+    constant_columns = int(
+        sum(
+            df[col].nunique(dropna=True) <= 1
+            for col in df.columns
+        )
+    )
+
+    # Basic model compatibility
+    models_compatible = (
+        usable_numeric_columns >= 1
+        and infinite_values == 0
+        and constant_columns == 0
+    )
+
+    isolation_forest = models_compatible
+    dbscan = models_compatible
+    one_class_svm = models_compatible
+
+    compatible = models_compatible
+
+    if compatible:
+        message = "Dataset is compatible."
+    elif usable_numeric_columns == 0:
+        message = "The dataset does not contain usable numeric columns."
+    elif infinite_values > 0:
+        message = "The dataset contains infinite values."
+    elif constant_columns > 0:
+        message = "The dataset contains constant columns."
+    else:
+        message = "Dataset requires preprocessing."
+
+    return {
+        "compatible": compatible,
+        "message": message,
+        "rows": rows,
+        "columns": columns,
+        "numeric_columns": numeric_columns,
+        "usable_numeric_columns": usable_numeric_columns,
+        "missing_values": missing_values,
+        "duplicates": duplicates,
+        "infinite_values": infinite_values,
+        "constant_columns": constant_columns,
+        "isolation_forest": isolation_forest,
+        "dbscan": dbscan,
+        "one_class_svm": one_class_svm
+    }
 # ============================================================
 # EXISTING MODULES
 # ============================================================
@@ -736,6 +853,7 @@ if page == "🚀 Dataset Workflow":
             "text/csv",
             key="synthetic_download"
         )
+        
 # ============================================================
 # HELPER FUNCTIONS
 # ============================================================
@@ -2622,6 +2740,7 @@ if df is not None and page == "🚀 Dataset Workflow":
                 st.success(
                     "✅ Automatic data preparation completed."
                 )
+                st.session_state.cleaned_dataset = processed_df.copy()
 
                 st.dataframe(
                     processed_df.head(50),
@@ -3211,6 +3330,30 @@ if df is not None and page == "🚀 Dataset Workflow":
             "🎉 DataPulse completed the selected "
             "dataset-analysis pipeline."
         )
+        # ============================================================
+# FINAL DATASET DOWNLOAD
+# ============================================================
+
+if "cleaned_dataset" in st.session_state:
+
+    final_dataset = st.session_state.cleaned_dataset
+
+    st.download_button(
+        "⬇️ Download Preprocessed & Cleaned Dataset",
+        final_dataset.to_csv(
+            index=False
+        ).encode("utf-8"),
+        "DataPulse_preprocessed_cleaned_dataset.csv",
+        "text/csv",
+        key="pipeline_final_download",
+        use_container_width=True
+    )
+
+else:
+
+    st.info(
+        "ℹ️ Apply data cleaning first to generate the preprocessed dataset."
+    )
 
 
 # ============================================================
@@ -3351,19 +3494,116 @@ if df is not None and page == "Dashboard":
 
         st.write(result)
 
-
 # ============================================================
 # ANOMALY DETECTION PAGE
 # ============================================================
 
-if df is not None and page == "Anomaly Detection":
+if page == "Anomaly Detection":
 
-    st.header(
-        "🚨 Anomaly Detection"
+    st.header("🔍 Anomaly Detection")
+
+    # ========================================================
+    # DATASET COMPATIBILITY
+    # ========================================================
+
+    compatibility = check_dataset_compatibility(df)
+
+    st.subheader("📊 Dataset Compatibility Check")
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    col1.metric(
+        "Rows",
+        compatibility["rows"]
     )
 
+    col2.metric(
+        "Columns",
+        compatibility["columns"]
+    )
+
+    col3.metric(
+        "Numeric Features",
+        compatibility["numeric_columns"]
+    )
+
+    col4.metric(
+        "Usable Features",
+        compatibility["usable_numeric_columns"]
+    )
+
+    # ========================================================
+    # DATA QUALITY CHECKS
+    # ========================================================
+
+    st.subheader("🔎 Data Quality Checks")
+
+    quality_col1, quality_col2, quality_col3 = st.columns(3)
+
+    with quality_col1:
+
+        if compatibility["missing_values"] == 0:
+            st.success("✅ No Missing Values")
+        else:
+            st.warning(
+                f"⚠️ {compatibility['missing_values']} Missing Values"
+            )
+
+    with quality_col2:
+
+        if compatibility["infinite_values"] == 0:
+            st.success("✅ No Infinite Values")
+        else:
+            st.warning(
+                f"⚠️ {compatibility['infinite_values']} Infinite Values"
+            )
+
+    with quality_col3:
+
+        if compatibility["constant_columns"] == 0:
+            st.success("✅ No Constant Columns")
+        else:
+            st.warning(
+                f"⚠️ {compatibility['constant_columns']} Constant Columns"
+            )
+
+    # ========================================================
+    # MODEL COMPATIBILITY
+    # ========================================================
+
+    st.subheader("🤖 Model Compatibility")
+
+    model_col1, model_col2, model_col3 = st.columns(3)
+
+    with model_col1:
+
+        if compatibility["isolation_forest"]:
+            st.success("✅ Isolation Forest\n\nReady")
+        else:
+            st.error("❌ Isolation Forest\n\nNot suitable")
+
+    with model_col2:
+
+        if compatibility["dbscan"]:
+            st.success("✅ DBSCAN\n\nReady")
+        else:
+            st.error("❌ DBSCAN\n\nNot suitable")
+
+    with model_col3:
+
+        if compatibility["one_class_svm"]:
+            st.success("✅ One-Class SVM\n\nReady")
+        else:
+            st.error("❌ One-Class SVM\n\nNot suitable")
+
+    # ========================================================
+    # MODEL SELECTION
+    # ========================================================
+
+    st.subheader("🎯 Select Detection Model")
+
     model_choice = st.selectbox(
-        "Select Detection Model",
+        "Detection Model",
         [
             "Isolation Forest",
             "DBSCAN",
@@ -3371,183 +3611,251 @@ if df is not None and page == "Anomaly Detection":
         ]
     )
 
-    try:
+    run_detection = st.button(
+        "🚀 Run Detection",
+        type="primary",
+        use_container_width=True
+    )
 
-        if model_choice == "Isolation Forest":
+    # ========================================================
+    # RUN DETECTION
+    # ========================================================
 
-            result_df = detect_anomalies(
-                df
-            )
-
-        elif model_choice == "DBSCAN":
-
-            result_df = detect_anomalies_dbscan(
-                df
-            )
-
-        else:
-
-            result_df = detect_anomalies_svm(
-                df
-            )
-
-        anomaly_column = get_anomaly_column(
-            result_df
-        )
-
-        if anomaly_column is None:
-
-            raise ValueError(
-                "Model did not return an anomaly column."
-            )
-
-        st.success(
-            f"✅ {model_choice} completed successfully!"
-        )
-
-        anomaly_count = int(
-            (
-                result_df[
-                    anomaly_column
-                ] == -1
-            ).sum()
-        )
-
-        normal_count = (
-            len(result_df)
-            - anomaly_count
-        )
-
-        col1, col2, col3 = st.columns(3)
-
-        col1.metric(
-            "Total Records",
-            len(result_df)
-        )
-
-        col2.metric(
-            "Normal Records",
-            normal_count
-        )
-
-        col3.metric(
-            "Anomalies",
-            anomaly_count
-        )
-
-        anomaly_df = result_df[
-            result_df[
-                anomaly_column
-            ] == -1
-        ]
-
-        st.subheader(
-            "⚠️ Detected Anomalies"
-        )
-
-        st.dataframe(
-            anomaly_df.head(50),
-            use_container_width=True
-        )
-
-        numeric_columns = get_numeric_columns(
-            df
-        )
-
-        if len(numeric_columns) >= 2:
-
-            x_axis = st.selectbox(
-                "Select X-axis",
-                numeric_columns,
-                key="anomaly_x_axis"
-            )
-
-            y_axis = st.selectbox(
-                "Select Y-axis",
-                numeric_columns,
-                key="anomaly_y_axis"
-            )
-
-            fig = px.scatter(
-                result_df,
-                x=x_axis,
-                y=y_axis,
-                color=result_df[
-                    anomaly_column
-                ].astype(str),
-                title="Anomaly Visualization"
-            )
-
-            st.plotly_chart(
-                fig,
-                use_container_width=True
-            )
-
-        st.header(
-            "🤖 AI Insights"
-        )
-
-        insights = generate_insights(
-            result_df,
-            anomaly_count
-        )
-
-        for insight in insights:
-
-            st.success(
-                insight
-            )
-
-        csv_data = (
-            anomaly_df
-            .to_csv(index=False)
-            .encode("utf-8")
-        )
-
-        st.download_button(
-            "⬇️ Download Anomaly Report",
-            csv_data,
-            "DataPulse_anomaly_report.csv",
-            "text/csv"
-        )
-
-        quality_score = calculate_quality_score(
-            df
-        )
+    if run_detection:
 
         try:
 
-            save_analysis(
-                uploaded_file.name,
-                quality_score,
-                anomaly_count,
-                model_choice
+            if df is None:
+
+                st.warning(
+                    "⚠️ Please upload a CSV file before running anomaly detection."
+                )
+
+                st.stop()
+
+            if df.empty:
+
+                st.warning(
+                    "⚠️ The uploaded dataset is empty."
+                )
+
+                st.stop()
+
+            # ------------------------------------------------
+            # RUN SELECTED MODEL
+            # ------------------------------------------------
+
+            if model_choice == "Isolation Forest":
+
+                result_df = detect_anomalies(
+                    df
+                )
+
+            elif model_choice == "DBSCAN":
+
+                result_df = detect_anomalies_dbscan(
+                    df
+                )
+
+            else:
+
+                result_df = detect_anomalies_svm(
+                    df
+                )
+
+            # ------------------------------------------------
+            # FIND ANOMALY COLUMN
+            # ------------------------------------------------
+
+            anomaly_column = get_anomaly_column(
+                result_df
             )
 
-        except Exception:
-            pass
+            if anomaly_column is None:
 
-    except ValueError as e:
+                raise ValueError(
+                    "Model did not return an anomaly column."
+                )
 
-        st.error(
-            f"⚠️ {model_choice} cannot process this dataset."
-        )
+            st.success(
+                f"✅ {model_choice} completed successfully!"
+            )
 
-        st.warning(
-            str(e)
-        )
+            # ------------------------------------------------
+            # COUNT ANOMALIES
+            # ------------------------------------------------
 
-    except Exception as e:
+            anomaly_count = int(
+                (
+                    result_df[
+                        anomaly_column
+                    ] == -1
+                ).sum()
+            )
 
-        st.error(
-            f"❌ An error occurred while running "
-            f"{model_choice}."
-        )
+            normal_count = (
+                len(result_df)
+                - anomaly_count
+            )
 
-        st.code(
-            str(e)
-        )
+            # ------------------------------------------------
+            # METRICS
+            # ------------------------------------------------
 
+            result_col1, result_col2, result_col3 = st.columns(3)
+
+            result_col1.metric(
+                "Total Records",
+                len(result_df)
+            )
+
+            result_col2.metric(
+                "Normal Records",
+                normal_count
+            )
+
+            result_col3.metric(
+                "Anomalies",
+                anomaly_count
+            )
+
+            # ------------------------------------------------
+            # ANOMALY TABLE
+            # ------------------------------------------------
+
+            anomaly_df = result_df[
+                result_df[
+                    anomaly_column
+                ] == -1
+            ]
+
+            st.subheader(
+                "⚠️ Detected Anomalies"
+            )
+
+            st.dataframe(
+                anomaly_df.head(50),
+                use_container_width=True
+            )
+
+            # ------------------------------------------------
+            # VISUALIZATION
+            # ------------------------------------------------
+
+            numeric_columns = get_numeric_columns(
+                df
+            )
+
+            if len(numeric_columns) >= 2:
+
+                st.subheader(
+                    "📈 Anomaly Visualization"
+                )
+
+                x_axis = st.selectbox(
+                    "Select X-axis",
+                    numeric_columns,
+                    key="anomaly_x_axis"
+                )
+
+                y_axis = st.selectbox(
+                    "Select Y-axis",
+                    numeric_columns,
+                    key="anomaly_y_axis"
+                )
+
+                fig = px.scatter(
+                    result_df,
+                    x=x_axis,
+                    y=y_axis,
+                    color=result_df[
+                        anomaly_column
+                    ].astype(str),
+                    title="Anomaly Visualization"
+                )
+
+                st.plotly_chart(
+                    fig,
+                    use_container_width=True
+                )
+
+            # ------------------------------------------------
+            # AI INSIGHTS
+            # ------------------------------------------------
+
+            st.header(
+                "🤖 AI Insights"
+            )
+
+            insights = generate_insights(
+                result_df,
+                anomaly_count
+            )
+
+            for insight in insights:
+
+                st.success(
+                    insight
+                )
+
+            # ------------------------------------------------
+            # DOWNLOAD REPORT
+            # ------------------------------------------------
+
+            csv_data = (
+                anomaly_df
+                .to_csv(index=False)
+                .encode("utf-8")
+            )
+
+            st.download_button(
+                "⬇️ Download Anomaly Report",
+                csv_data,
+                "DataPulse_anomaly_report.csv",
+                "text/csv"
+            )
+
+            # ------------------------------------------------
+            # SAVE ANALYSIS
+            # ------------------------------------------------
+
+            quality_score = calculate_quality_score(
+                df
+            )
+
+            try:
+
+                save_analysis(
+                    uploaded_file.name,
+                    quality_score,
+                    anomaly_count,
+                    model_choice
+                )
+
+            except Exception:
+
+                pass
+
+        except ValueError as e:
+
+            st.error(
+                f"⚠️ {model_choice} cannot process this dataset."
+            )
+
+            st.warning(
+                str(e)
+            )
+
+        except Exception as e:
+
+            st.error(
+                f"❌ An error occurred while running "
+                f"{model_choice}."
+            )
+
+            st.code(
+                str(e)
+            )
 
 # ============================================================
 # DATA CLEANING PAGE
@@ -3558,6 +3866,9 @@ if df is not None and page == "Data Cleaning":
     st.header(
         "🧹 Data Cleaning & Resolution"
     )
+        # Store final cleaned dataset across Streamlit reruns
+    if "cleaned_dataset" not in st.session_state:
+        st.session_state.cleaned_dataset = df.copy()
 
     st.subheader(
         "📊 Dataset Overview"
@@ -3649,7 +3960,7 @@ if df is not None and page == "Data Cleaning":
             key="clean_missing"
         ):
 
-            cleaned_df = df.copy()
+            cleaned_df = st.session_state.cleaned_dataset.copy()
 
             if cleaning_method == (
                 "Fill numerical values with Median"
@@ -3709,6 +4020,7 @@ if df is not None and page == "Data Cleaning":
                     .dropna()
                     .reset_index(drop=True)
                 )
+            st.session_state.cleaned_dataset = cleaned_df.copy()
 
             st.success(
                 "✅ Missing values cleaned."
@@ -3771,11 +4083,13 @@ if df is not None and page == "Data Cleaning":
         ):
 
             cleaned_duplicates = (
-                df
-                .drop_duplicates()
-                .reset_index(drop=True)
+    st.session_state.cleaned_dataset
+    .drop_duplicates()
+    .reset_index(drop=True)
+)
+            st.session_state.cleaned_dataset = (
+                cleaned_duplicates.copy()
             )
-
             st.success(
                 "✅ Duplicate rows removed."
             )
@@ -3868,6 +4182,43 @@ if df is not None and page == "Data Cleaning":
         st.info(
             "No numerical columns available."
         )
+            # ========================================================
+    # FINAL PREPROCESSED DATASET
+    # ========================================================
+
+    st.subheader(
+        "📥 Final Preprocessed & Cleaned Dataset"
+    )
+
+    final_cleaned_df = (
+        st.session_state.cleaned_dataset
+    )
+
+    st.write(
+        f"Final dataset: "
+        f"{final_cleaned_df.shape[0]} rows × "
+        f"{final_cleaned_df.shape[1]} columns"
+    )
+
+    st.dataframe(
+        final_cleaned_df.head(50),
+        use_container_width=True
+    )
+
+    final_csv = (
+        final_cleaned_df
+        .to_csv(index=False)
+        .encode("utf-8")
+    )
+
+    st.download_button(
+        "⬇️ Download Preprocessed & Cleaned Dataset",
+        final_csv,
+        "DataPulse_preprocessed_cleaned_dataset.csv",
+        "text/csv",
+        key="final_cleaned_dataset_download",
+        use_container_width=True
+    )
 
 
 # ============================================================
