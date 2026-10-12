@@ -2762,6 +2762,206 @@ if df is not None and page == "🚀 Dataset Workflow":
                     "text/csv",
                     key="workflow_prepared_download"
                 )
+                
+                # ==========================================
+                # VISUALIZATION OF CLEANED DATASET
+                # ==========================================
+
+                st.divider()
+
+                st.header("📊 Cleaned Dataset Visualization")
+
+                st.write(
+                    "Explore the cleaned dataset using "
+                    "interactive visualizations."
+                )
+
+                # Dataset overview
+                st.subheader("1. Dataset Overview")
+
+                col1, col2, col3 = st.columns(3)
+
+                col1.metric(
+                    "Total Rows",
+                    processed_df.shape[0]
+                )
+
+                col2.metric(
+                    "Total Columns",
+                    processed_df.shape[1]
+                )
+
+                col3.metric(
+                    "Missing Values",
+                    int(processed_df.isnull().sum().sum())
+                )
+
+                # Separate numeric and categorical columns
+                numeric_columns = (
+                    processed_df
+                    .select_dtypes(include="number")
+                    .columns
+                    .tolist()
+                )
+
+                categorical_columns = (
+                    processed_df
+                    .select_dtypes(
+                        include=["object", "category", "bool"]
+                    )
+                    .columns
+                    .tolist()
+                )
+
+                # ==========================================
+                # 2. NUMERICAL DATA DISTRIBUTION
+                # ==========================================
+
+                st.subheader("2. Numerical Data Distribution")
+
+                if numeric_columns:
+
+                    selected_numeric = st.selectbox(
+                        "Choose a numerical column",
+                        numeric_columns,
+                        key="cleaned_numeric_distribution"
+                    )
+
+                    st.caption(
+                        f"Distribution of {selected_numeric}"
+                    )
+
+                    st.bar_chart(
+                        processed_df[selected_numeric]
+                        .dropna()
+                        .value_counts()
+                        .sort_index()
+                        .head(50)
+                    )
+
+                else:
+
+                    st.info(
+                        "No numerical columns are available "
+                        "for numerical distribution charts."
+                    )
+
+                # ==========================================
+                # 3. CORRELATION HEATMAP
+                # ==========================================
+
+                st.subheader("3. Numerical Correlation Heatmap")
+
+                if len(numeric_columns) >= 2:
+
+                    import matplotlib.pyplot as plt
+                    import seaborn as sns
+
+                    correlation_matrix = (
+                        processed_df[numeric_columns]
+                        .corr()
+                    )
+
+                    fig, ax = plt.subplots(
+                        figsize=(10, 6)
+                    )
+
+                    sns.heatmap(
+                        correlation_matrix,
+                        annot=len(numeric_columns) <= 10,
+                        cmap="coolwarm",
+                        fmt=".2f",
+                        ax=ax
+                    )
+
+                    ax.set_title(
+                        "Correlation Between Numerical Features"
+                    )
+
+                    fig.tight_layout()
+
+                    st.pyplot(fig)
+
+                    plt.close(fig)
+
+                else:
+
+                    st.info(
+                        "At least two numerical columns are "
+                        "required for a correlation heatmap."
+                    )
+
+                # ==========================================
+                # 4. BOX PLOT
+                # ==========================================
+
+                st.subheader("4. Outlier Exploration")
+
+                if numeric_columns:
+
+                    selected_box_column = st.selectbox(
+                        "Choose a column for the box plot",
+                        numeric_columns,
+                        key="cleaned_box_column"
+                    )
+
+                    fig, ax = plt.subplots(
+                        figsize=(9, 4)
+                    )
+
+                    ax.boxplot(
+                        processed_df[selected_box_column]
+                        .dropna()
+                    )
+
+                    ax.set_title(
+                        f"Box Plot: {selected_box_column}"
+                    )
+
+                    ax.set_ylabel(selected_box_column)
+
+                    fig.tight_layout()
+
+                    st.pyplot(fig)
+
+                    plt.close(fig)
+
+                    st.caption(
+                        "Points outside the whiskers may indicate "
+                        "potential outliers; they are not necessarily errors."
+                    )
+
+                # ==========================================
+                # 5. CATEGORICAL DATA VISUALIZATION
+                # ==========================================
+
+                st.subheader("5. Categorical Data Analysis")
+
+                if categorical_columns:
+
+                    selected_category = st.selectbox(
+                        "Choose a categorical column",
+                        categorical_columns,
+                        key="cleaned_category_column"
+                    )
+
+                    category_counts = (
+                        processed_df[selected_category]
+                        .fillna("Missing")
+                        .astype(str)
+                        .value_counts()
+                        .head(15)
+                    )
+
+                    st.bar_chart(category_counts)
+
+                else:
+
+                    st.info(
+                        "No categorical columns are available "
+                        "for categorical charts."
+                    )
+
 
             except Exception as e:
 
@@ -3348,12 +3548,172 @@ if "cleaned_dataset" in st.session_state:
         key="pipeline_final_download",
         use_container_width=True
     )
+ 
+# ============================================================
+# CLEANED DATASET VISUALIZATION
+# ============================================================
 
-else:
+if ("cleaned_dataset" in st.session_state
+    and st.session_state.cleaned_dataset is not None):
 
-    st.info(
-        "ℹ️ Apply data cleaning first to generate the preprocessed dataset."
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+
+    viz_df = st.session_state.cleaned_dataset.copy()
+
+    st.divider()
+    st.header("📊 Cleaned Dataset Visualization")
+
+    # 1. Dataset overview
+    st.subheader("1. Dataset Overview")
+
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric("Total Rows", len(viz_df))
+    col2.metric("Total Columns", len(viz_df.columns))
+    col3.metric(
+        "Missing Values",
+        int(viz_df.isnull().sum().sum())
     )
+
+    numeric_columns = (
+        viz_df.select_dtypes(include="number")
+        .columns.tolist()
+    )
+
+    categorical_columns = (
+        viz_df.select_dtypes(
+            include=["object", "category", "bool"]
+        ).columns.tolist()
+    )
+
+    # 2. Numerical distribution
+    st.subheader("2. Numerical Data Distribution")
+
+    if numeric_columns:
+
+        selected_column = st.selectbox(
+            "Select numerical column",
+            numeric_columns,
+            key="final_viz_numeric"
+        )
+
+        fig, ax = plt.subplots(figsize=(9, 4))
+
+        sns.histplot(
+            data=viz_df,
+            x=selected_column,
+            ax=ax
+        )
+
+        ax.set_title(f"Distribution of {selected_column}")
+        fig.tight_layout()
+        st.pyplot(fig)
+        plt.close(fig)
+
+    else:
+        st.info("No numerical columns are available.")
+
+    # 3. Correlation heatmap
+    st.subheader("3. Correlation Heatmap")
+
+    if len(numeric_columns) >= 2:
+
+        corr = viz_df[numeric_columns].corr()
+
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        sns.heatmap(
+            corr,
+            annot=len(numeric_columns) <= 10,
+            cmap="coolwarm",
+            fmt=".2f",
+            ax=ax
+        )
+
+        ax.set_title("Correlation Between Numerical Features")
+        fig.tight_layout()
+        st.pyplot(fig)
+        plt.close(fig)
+
+    else:
+        st.info("At least two numerical columns are required.")
+
+    # 4. Box plot
+    st.subheader("4. Outlier Exploration")
+
+    if numeric_columns:
+
+        box_column = st.selectbox(
+            "Select column for box plot",
+            numeric_columns,
+            key="final_viz_box"
+        )
+
+        fig, ax = plt.subplots(figsize=(9, 4))
+
+        sns.boxplot(
+            x=viz_df[box_column].dropna(),
+            ax=ax
+        )
+
+        ax.set_title(f"Box Plot: {box_column}")
+        fig.tight_layout()
+        st.pyplot(fig)
+        plt.close(fig)
+
+    # 5. Categorical distribution
+    st.subheader("5. Categorical Data Distribution")
+
+    if categorical_columns:
+
+        category_column = st.selectbox(
+            "Select categorical column",
+            categorical_columns,
+            key="final_viz_category"
+        )
+
+        counts = (
+            viz_df[category_column]
+            .fillna("Missing")
+            .astype(str)
+            .value_counts()
+            .head(15)
+        )
+
+        st.bar_chart(counts)
+
+    else:
+        st.info("No categorical columns are available.")
+
+    # 6. Missing values
+    st.subheader("6. Missing Values by Column")
+
+    missing_counts = viz_df.isnull().sum()
+    missing_counts = missing_counts[missing_counts > 0]
+
+    if not missing_counts.empty:
+        st.bar_chart(missing_counts)
+    else:
+        st.success("No missing values remain.")
+
+    # 7. Download cleaned dataset
+    st.subheader("7. Download Cleaned Dataset")
+
+    final_csv = viz_df.to_csv(index=False).encode("utf-8")
+
+    st.download_button(
+        "⬇️ Download Cleaned Dataset",
+        data=final_csv,
+        file_name="DataPulse_cleaned_dataset.csv",
+        mime="text/csv",
+        key="final_viz_download"
+    )
+
+
+
+
+ 
 
 
 # ============================================================
