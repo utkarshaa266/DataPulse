@@ -1707,37 +1707,33 @@ def run_regression(data, target):
         )
     )
 
-    # --------------------------------------------------------
-    # MODELS
+        # --------------------------------------------------------
+    # AVAILABLE REGRESSION MODELS
     # --------------------------------------------------------
 
     models = {
-
-        "Linear Regression":
-            LinearRegression(),
-
-        "Decision Tree":
-            DecisionTreeRegressor(
-                random_state=42
-            ),
-
-        "Random Forest":
-            RandomForestRegressor(
-                n_estimators=100,
-                random_state=42,
-                n_jobs=-1
-            ),
-
-        "Gradient Boosting":
-            GradientBoostingRegressor(
-                random_state=42
-            )
+        "Linear Regression": LinearRegression(),
+        "Decision Tree": DecisionTreeRegressor(
+            random_state=42
+        ),
+        "Random Forest": RandomForestRegressor(
+            n_estimators=100,
+            random_state=42,
+            n_jobs=-1
+        ),
+        "Gradient Boosting": GradientBoostingRegressor(
+            random_state=42
+        )
     }
 
-    results = []
+    selected_model_name = selected_model_name.strip()
 
-    trained_models = {}
+    if selected_model_name not in models:
+        raise ValueError(
+            "Please select a valid regression model."
+        )
 
+    model = models[selected_model_name]
     # --------------------------------------------------------
     # TRAIN AND EVALUATE MODELS
     # --------------------------------------------------------
